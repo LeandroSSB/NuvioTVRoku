@@ -33,11 +33,40 @@ covers the platform-applicable surface only:
 See `scripts/lint-megalan.sh` (BrightScript lint runs in Docker on a remote
 host; nothing runs locally except `curl`/`git`).
 
-## Data contracts
+## Repo layout
 
-`contracts/` freezes the exact JSON the app consumes: auth (Supabase GoTrue),
-addons (PostgREST `addons` table), Stremio addon protocol (catalog/meta/stream),
-subtitles. Run: `bash contracts/run-contracts.sh`.
+```
+manifest            Roku channel manifest
+source/main.brs     entry point
+source/config/      backend config (Registry + well-known resolve)
+components/         SceneGraph screens (MainScene; M1 adds home/detail/...)
+contracts/          curl suite that freezes the JSON contracts the app consumes
+scripts/            lint-megalan.sh (bslint in Docker on a remote host)
+```
+
+Note: addon URLs stored in the account's addons table are a mix of base URLs and full manifest URLs — consumers must normalize (contracts/06-subs.sh shows the pattern).
+
+## Contracts
+
+Data contracts run anywhere with `curl` + `jq` (they are light HTTP checks):
+
+```bash
+cp contracts/creds/creds.env.example contracts/creds/creds.env  # fill once
+bash contracts/run-contracts.sh
+```
+
+Coverage: `01` backend discovery (`.well-known/nuvio`, official + self-host) ·
+`02` auth (Supabase GoTrue password grant) · `03` account addons (PostgREST
+`addons`) · `04` catalog+stream (Stremio protocol via AIOStreams) · `05` series
+meta with correct seasons (TMDB episode groups) · `06` subtitles (OpenSubtitles v3).
+
+## Distribution (Roku)
+
+Roku has no download links: a channel is installed via (1) developer sideload
+(enable Developer Mode on the device, then `roku-deploy` against the device IP),
+(2) an *unlisted* channel link (`my.roku.com/account/add?channel=...`, free
+Roku Developer account), or (3) the public Channel Store. Community distribution
+target: unlisted channel at M5.
 
 ## License
 
