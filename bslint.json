@@ -1,0 +1,7 @@
+{
+  "files": ["source/**/*.brs", "components/**/*.brs"],
+  "rules": {
+    "commas-in-multi-dim-arrays": "off",
+    "unnecessary-parens": "warn"
+  }
+}

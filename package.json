@@ -1,0 +1,15 @@
+{
+  "name": "nuvio-tv-roku",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Nuvio TV for Roku — BrightScript/SceneGraph port of NuvioTV",
+  "license": "GPL-3.0",
+  "scripts": {
+    "lint": "bslint",
+    "lint:remote": "bash scripts/lint-megalan.sh"
+  },
+  "devDependencies": {
+    "@rokucommunity/bslint": "latest",
+    "roku-deploy": "latest"
+  }
+}
