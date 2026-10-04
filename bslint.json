@@ -1,5 +1,5 @@
 {
-  "files": ["source/**/*.brs", "components/**/*.brs"],
+  "files": ["source/**/*.brs", "components/**/*.brs", "components/**/*.xml"],
   "rules": {
     "commas-in-multi-dim-arrays": "off",
     "unnecessary-parens": "warn"

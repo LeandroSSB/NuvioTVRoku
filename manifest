@@ -1,0 +1,9 @@
+title=Nuvio TV
+subtitle=NuvioTVRoku
+major_version=0
+minor_version=1
+build_version=0
+mm_icon_focus_hd=pkg:/assets/images/icon_hd.png
+mm_icon_focus_sd=pkg:/assets/images/icon_sd.png
+splash_screen_hd=pkg:/assets/images/splash_hd.png
+splash_screen_sd=pkg:/assets/images/splash_sd.png
