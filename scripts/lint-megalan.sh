@@ -17,4 +17,4 @@ ssh megalan "docker run --rm \
   -v $REMOTE_DIR:/app -w /app \
   -v nuviotvroku-npmcache:/root/.npm \
   node:22-alpine \
-  sh -c 'npm install --no-audit --no-fund >/dev/null 2>&1 && npx bslint'"
+  sh -c 'npm install --no-audit --no-fund > /tmp/nuviotvroku-npm.log 2>&1 || { cat /tmp/nuviotvroku-npm.log >&2; exit 1; } && npx bslint'"

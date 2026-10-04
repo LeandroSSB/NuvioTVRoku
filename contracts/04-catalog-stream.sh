@@ -1,9 +1,28 @@
 #!/usr/bin/env bash
 # Contrato 04: protocolo Stremio no AIOStreams — manifest → catalog → stream.
+# Manifest URL vem da tabela addons (fonte de verdade do app); creds é fallback.
 # Prefere catálogo de movies (stream de série exige id ttXXX:S:E, escopo do M1).
 source "$(dirname "$0")/lib.sh"
 
-M="$AIOSTREAMS_MANIFEST_URL"
+ANON="$(json_get "$(wellknown "$NUVIO_BACKEND_URL")" .publishable_key)"
+TOKEN="$(nuvio_login "$NUVIO_BACKEND_URL" "$ANON")"
+assert_not_empty "login para descobrir addon AIOStreams" "$TOKEN"
+
+ADDONS="$(curl -sS -m 15 \
+    "$NUVIO_BACKEND_URL/rest/v1/addons?select=url" \
+    -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN")"
+AIO_URL="$(echo "$ADDONS" | jq -r '.[] | select(.url | test("aio\\.")) | .url' | head -1)"
+
+M=""
+if [ -n "$AIO_URL" ]; then
+    # A tabela addons guarda base ou manifest — normaliza como 06.
+    case "$AIO_URL" in *manifest.json) M="$AIO_URL";; *) M="$AIO_URL/manifest.json";; esac
+else
+    echo "  nota: sem URL aio.* na tabela addons — fallback AIOSTREAMS_MANIFEST_URL do creds"
+    M="$AIOSTREAMS_MANIFEST_URL"
+fi
+assert_not_empty "manifest URL derivada da tabela addons" "$M"
+
 MANIFEST="$(curl -sS -m 20 "$M")"
 assert_contains "manifest tem catalogs" '"catalogs"' "$MANIFEST"
 assert_contains "manifest tem resources" '"stream"' "$MANIFEST"

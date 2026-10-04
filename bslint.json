@@ -1,7 +1,7 @@
 {
   "files": ["source/**/*.brs", "components/**/*.brs", "components/**/*.xml"],
   "rules": {
-    "commas-in-multi-dim-arrays": "off",
-    "unnecessary-parens": "warn"
+    "aa-comma-style": "off",
+    "condition-style": "warn"
   }
 }

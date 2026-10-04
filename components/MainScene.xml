@@ -1,14 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <component name="MainScene" extends="Scene">
     <script type="text/brightscript" uri="pkg:/source/config/Config.brs" />
-    <script type="text/brightscript">
-        sub init()
-            title = m.top.findNode("title")
-            detail = m.top.findNode("detail")
-            title.text = "Nuvio TV (Roku)"
-            detail.text = "v" + getAppVersion() + chr(10) + "backend: " + getBackendUrl() + chr(10) + "M0 skeleton — aguardando telas do M1"
-        end sub
-    </script>
+    <script type="text/brightscript" uri="MainScene.brs" />
     <children>
         <Label id="title" translation="[80, 80]" font="font:LargeSystemFont" />
         <Label id="detail" translation="[80, 180]" font="font:SmallSystemFont" />

@@ -37,11 +37,16 @@ host; nothing runs locally except `curl`/`git`).
 
 ```
 manifest            Roku channel manifest
+assets/images/      placeholder icon/splash art (HD/SD)
 source/main.brs     entry point
 source/config/      backend config (Registry + well-known resolve)
 components/         SceneGraph screens (MainScene; M1 adds home/detail/...)
 contracts/          curl suite that freezes the JSON contracts the app consumes
 scripts/            lint-megalan.sh (bslint in Docker on a remote host)
+package.json        toolchain (bslint, roku-deploy)
+bslint.json         lint rules
+roku_deploy.json    sideload config
+LICENSE             GPLv3
 ```
 
 Note: addon URLs stored in the account's addons table are a mix of base URLs and full manifest URLs — consumers must normalize (contracts/06-subs.sh shows the pattern).
