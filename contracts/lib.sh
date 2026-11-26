@@ -41,6 +41,14 @@ finish_contract() { # nome
     [ "$FAIL_COUNT" -eq 0 ] || exit 1
 }
 
+base_of() { # manifestUrl → base do addon (espelha lib/Addons.brs AddonBaseUrl)
+    case "$1" in
+        */manifest.json) echo "${1%/manifest.json}";;
+        *.json) echo "${1%/*}";;
+        *) echo "$1";;
+    esac
+}
+
 json_get() { # json jqPath
     echo "$1" | jq -r "$2 // empty"
 }
