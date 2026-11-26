@@ -128,6 +128,40 @@ sub OnRowItemSelected()
     end if
 end sub
 
+' M3: row "Continuar assistindo" chega pronta do ProgressTask (mode="cw") e entra
+' na posição 0 REBUILDANDO o content: roArray não tem unshift/prepend, então
+' newRows = [cw] + antigos; o pending map shifta +1 (os catálogos agora são as
+' rows 1..n) para o lazy-load no foco continuar acertando. Re-atribuir o content
+' devolve o foco para a row 0 (a CW) — comportamento aceitável de TV.
+sub OnPrependRow()
+    cw = parseJson(m.top.prependRowJson)
+    if cw = invalid or type(cw) <> "roArray" or cw.count() = 0 then
+        return
+    end if
+    if m.rowList.content = invalid then
+        return
+    end if
+    shifted = { }
+    for each k in m.pending.keys()
+        shifted[(k.toInt() + 1).toStr()] = m.pending[k]
+    end for
+    m.pending = shifted
+    newRows = [cw[0]]
+    for each row in m.rowsData
+        newRows.push(row)
+    end for
+    m.rowsData = newRows
+    content = createObject("roSGNode", "ContentNode")
+    for each row in m.rowsData
+        rowNode = content.createChild("ContentNode")
+        rowNode.title = row.title
+        for each item in row.items
+            AppendItem(rowNode, item)
+        end for
+    end for
+    m.rowList.content = content
+end sub
+
 sub OnErrorSet()
     m.errorLabel.text = m.top.error
     m.spinner.visible = false
