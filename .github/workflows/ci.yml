@@ -4,15 +4,42 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint-stage:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: npm ci
       - run: npx bslint
       - run: npm run stage
+
+  contracts:
+    # Data contracts against the live backend — the TDD layer this repo validates
+    # BrightScript logic with (no Roku emulator exists). Requires secrets: available
+    # on this repo's own pushes/PRs; fork PRs get no secrets, so the job skips there.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.fork == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write gitignored creds from repo secrets
+        run: |
+          cat > contracts/creds/creds.env <<EOF
+          NUVIO_BACKEND_URL=${{ secrets.NUVIO_BACKEND_URL }}
+          NUVIO_EMAIL=${{ secrets.NUVIO_EMAIL }}
+          NUVIO_PASSWORD=${{ secrets.NUVIO_PASSWORD }}
+          AIOSTREAMS_MANIFEST_URL=${{ secrets.AIOSTREAMS_MANIFEST_URL }}
+          EOF
+      - name: Run contract suite (01–09)
+        run: bash contracts/run-contracts.sh
