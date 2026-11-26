@@ -27,14 +27,17 @@ function DetectStreamFormat(url as string, filenameHint as string) as string
 end function
 
 ' match de sufixo tolerante a query string: "?..." cortado antes de comparar
-' (inStr é 0-based, mid é 1-based — por isso o +1 na janela)
+' (implementado só com left/right — mid tem base ambígua entre fontes)
 function StreamTailMatches(lowerSrc as string, ext as string) as boolean
     if lowerSrc.right(ext.len()) = ext then
         return true
     end if
     q = lowerSrc.inStr("?")
-    if q >= ext.len() and lowerSrc.mid(q - ext.len() + 1, ext.len()) = ext then
-        return true
+    if q > 0 then
+        before = lowerSrc.left(q)
+        if before.right(ext.len()) = ext then
+            return true
+        end if
     end if
     return false
 end function

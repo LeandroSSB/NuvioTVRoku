@@ -29,6 +29,10 @@ sub execute()
         end if
     end if
     SessionSaveTokens(auth.refreshToken)
+    userId = AuthFetchUserId(anonKey, auth.accessToken)
+    if userId <> "" then
+        SessionWrite("user_id", userId)
+    end if
     profiles = FetchProfiles(anonKey, auth.accessToken)
     if profiles = invalid then
         m.top.error = "profiles_failed"
