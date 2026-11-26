@@ -45,8 +45,8 @@ sidecar SRT (PT-BR first); resume: position saved to Registry every 15s and on
 pause/back, cleared on finish.
 
 Registry keys (`nuvio` section): `backend_url`, `anon_key`, `anon_key_backend`,
-`refresh_token`, `active_profile_id`. Access tokens are never persisted (2 h
-expiry; refreshed on use).
+`refresh_token`, `active_profile_id`, `res_<itemId>`. Access tokens are never
+persisted (2 h expiry; refreshed on use).
 
 Deliberate M1–M2 cuts (tracked for M4+): profile PIN, profile create/edit/delete,
 logout UI, "remember last profile" toggle, avatar images (color tile + initial

@@ -70,11 +70,37 @@ function RefreshAccessToken(anonKey as string, refreshToken as string) as string
     if refreshToken = "" then
         return ""
     end if
+    ' cache de access token EM RAM (m.global — nunca persistido; TTL 100min < 7200s do GoTrue)
+    if not m.global.hasField("accessTokenCache") then
+        m.global.addFields({ accessTokenCache: "", accessTokenCacheAt: 0, refreshInFlight: false })
+    end if
+    now = CreateObject("roDateTime").AsSecondsIntervalSince1970()
+    if m.global.accessTokenCache <> "" and now - m.global.accessTokenCacheAt < 6000 then
+        return m.global.accessTokenCache
+    end if
+    if m.global.refreshInFlight = true then
+        ' segunda task chegou durante o grant — poll do flag global (Sleep global);
+        ' port por task node nunca seria acordado entre tasks distintas
+        deadline = now + 20
+        while m.global.refreshInFlight = true and CreateObject("roDateTime").AsSecondsIntervalSince1970() < deadline
+            Sleep(1)
+        end while
+        if m.global.accessTokenCache <> "" then
+            return m.global.accessTokenCache
+        end if
+        return ""
+    end if
+    m.global.refreshInFlight = true
     result = AuthRefresh(anonKey, refreshToken)
+    m.global.refreshInFlight = false
     if result.ok then
         SessionSaveTokens(result.refreshToken)
+        m.global.accessTokenCache = result.accessToken
+        m.global.accessTokenCacheAt = now
         return result.accessToken
     end if
+    ' refresh falhou (sessão morta) — invalida o cache p/ o path session_expired → clear → boot
+    m.global.accessTokenCache = ""
     return ""
 end function
 

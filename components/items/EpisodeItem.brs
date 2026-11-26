@@ -15,6 +15,7 @@ sub OnContentSet()
 end sub
 
 sub OnFocusChanged()
+    if m.name = invalid or m.code = invalid then return
     if m.top.focusPercent > 0.5 then
         m.name.opacity = 1.0
         m.code.opacity = 1.0
