@@ -12,6 +12,10 @@ sub init()
     m.profileScreen = invalid
     m.homeScreen = invalid
     m.detailScreen = invalid
+    m.streams = []
+    m.streamIndex = 0
+    m.currentItem = invalid
+    m.subsReady = false
     m.bootSpinner = m.top.findNode("bootSpinner")
     if SessionGetRefreshToken() <> "" then
         StartSessionTask("boot")
@@ -121,10 +125,10 @@ sub OnItemSelected()
         m.metaTask.observeField("success", "OnMetaLoaded")
         m.metaTask.observeField("error", "OnMetaError")
     end if
-    item = parseJson(itemJson)
+    m.currentItem = parseJson(itemJson)
     m.metaTask.addonsJson = m.homeScreen.addonsJson
-    m.metaTask.metaType = item.type
-    m.metaTask.metaId = item.id
+    m.metaTask.metaType = m.currentItem.type
+    m.metaTask.metaId = m.currentItem.id
     m.metaTask.control = "STOP"
     m.metaTask.control = "RUN"
 end sub
@@ -139,6 +143,73 @@ end sub
 sub OnMetaError()
     m.bootSpinner.visible = false
     ' sem meta: detail fica só com os dados do row item (spec §4 — não bloquear)
+end sub
+
+' ---------- player (M2) ----------
+
+sub StartPlay(index as integer)
+    if m.streams = invalid or index >= m.streams.count() then
+        m.currentScreen.error = "Sem stream reproduzível para este item."
+        ShowScreen(m.homeScreen)
+        return
+    end if
+    m.streamIndex = index
+    if m.playerScreen = invalid then
+        m.playerScreen = createObject("roSGNode", "PlayerScreen")
+        m.playerScreen.observeField("playFailed", "OnPlayFailed")
+        m.playerScreen.observeField("playFinished", "OnPlayFinished")
+        m.playerScreen.observeField("exitRequested", "OnPlayerExit")
+    end if
+    m.playerScreen.itemId = m.currentItem.id
+    m.playerScreen.resumeSeconds = ResumeGetPosition(m.currentItem.id)
+    m.playerScreen.subsJson = m.subsJson
+    m.playerScreen.streamJson = FormatJson(m.streams[index])
+    ShowScreen(m.playerScreen)
+    StartSubsTask()
+end sub
+
+sub StartSubsTask()
+    if m.subsTask = invalid then
+        m.subsTask = createObject("roSGNode", "SubsTask")
+        m.subsTask.observeField("success", "OnSubsLoaded")
+    end if
+    m.subsTask.subType = m.currentItem.type
+    m.subsTask.subId = m.currentItem.id
+    m.subsTask.control = "STOP"
+    m.subsTask.control = "RUN"
+end sub
+
+sub OnSubsLoaded()
+    if m.playerScreen <> invalid and m.subsTask.success then
+        m.subsJson = m.subsTask.subsJson
+        m.playerScreen.subsJson = m.subsJson
+    end if
+end sub
+
+sub OnPlayFailed()
+    nextIndex = m.streamIndex + 1
+    if nextIndex < m.streams.count() then
+        ' spec §4: direct-play falhou → próxima stream (mesma tela, re-injetada)
+        m.playerScreen.playFailed = false
+        StartPlay(nextIndex)
+    else
+        m.currentScreen = m.playerScreen
+        m.top.removeChild(m.playerScreen)
+        ShowScreen(m.homeScreen)
+        m.homeScreen.error = "Falha ao reproduzir todas as streams."
+    end if
+end sub
+
+sub OnPlayFinished()
+    ShowScreen(m.detailScreen)
+end sub
+
+sub OnPlayerExit()
+    ShowScreen(m.detailScreen)
+end sub
+
+sub OnPlayRequested()
+    ' Task 8 substitui: hoje o Detail ainda mostra stub — nada a fazer
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
