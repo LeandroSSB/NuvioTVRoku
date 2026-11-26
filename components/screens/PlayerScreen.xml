@@ -3,7 +3,6 @@
 <component name="PlayerScreen" extends="Group" initialFocus="player">
     <script type="text/brightscript" uri="pkg:/source/lib/Session.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/Resume.brs" />
-    <script type="text/brightscript" uri="pkg:/source/lib/Progress.brs" />
     <script type="text/brightscript" uri="PlayerScreen.brs" />
     <interface>
         <field id="streamJson" type="string" onChange="OnStreamSet" />

@@ -71,6 +71,10 @@ sub OnPlayerState()
     end if
     if state = "finished" then
         m.saveTimer.control = "stop"
+        ' ping ANTES do ResumeClear: position==duration casa com a semântica upstream
+        ' (MainScene faz push "assistido") e o pull filtrado depois exclui a row do
+        ' resume lookup — sem o ping o servidor ficaria com a posição antiga.
+        EmitProgressPing()
         ResumeClear(m.top.itemId)
         m.top.playFinished = true
         return
