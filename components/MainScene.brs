@@ -17,6 +17,12 @@ sub init()
     m.currentItem = invalid
     m.subsReady = false
     m.subsJson = ""
+    m.streamTask = invalid
+    m.subsTask = invalid
+    m.playerScreen = invalid
+    m.streamsScreen = invalid
+    m.currentPlayItemId = ""
+    m.pendingStreamsMode = ""
     m.bootSpinner = m.top.findNode("bootSpinner")
     if SessionGetRefreshToken() <> "" then
         StartSessionTask("boot")
@@ -116,6 +122,8 @@ sub OnItemSelected()
     m.homeScreen.itemSelected = ""
     if m.detailScreen = invalid then
         m.detailScreen = createObject("roSGNode", "DetailScreen")
+        m.detailScreen.observeField("playRequested", "OnPlayRequested")
+        m.detailScreen.observeField("streamsRequested", "OnStreamsRequested")
     end if
     m.detailScreen.itemJson = itemJson
     m.detailScreen.metaJson = ""
@@ -150,8 +158,10 @@ end sub
 
 sub StartPlay(index as integer)
     if m.streams = invalid or index >= m.streams.count() then
-        m.currentScreen.error = "Sem stream reproduzível para este item."
+        ' Detail/StreamsScreen não têm field "error" — roteia pra home como nos
+        ' demais erros (evita setar field inexistente no node corrente).
         ShowScreen(m.homeScreen)
+        m.homeScreen.error = "Sem stream reproduzível para este item."
         return
     end if
     m.streamIndex = index
@@ -167,8 +177,11 @@ sub StartPlay(index as integer)
     m.playerScreen.playFailed = false
     m.playerScreen.exitRequested = false
     m.playerScreen.streamJson = ""
-    m.playerScreen.itemId = m.currentItem.id
-    m.playerScreen.resumeSeconds = ResumeGetPosition(m.currentItem.id)
+    m.playerScreen.itemId = m.currentPlayItemId
+    m.playerScreen.resumeSeconds = ResumeGetPosition(m.currentPlayItemId)
+    ' play novo começa SEM legendas até o SubsTask do item corrente responder
+    ' (evita legendas do item anterior vazarem no novo)
+    m.subsJson = ""
     m.playerScreen.subsJson = m.subsJson
     m.playerScreen.streamJson = FormatJson(m.streams[index])
     ShowScreen(m.playerScreen)
@@ -181,7 +194,7 @@ sub StartSubsTask()
         m.subsTask.observeField("success", "OnSubsLoaded")
     end if
     m.subsTask.subType = m.currentItem.type
-    m.subsTask.subId = m.currentItem.id
+    m.subsTask.subId = m.currentPlayItemId
     m.subsTask.control = "STOP"
     m.subsTask.control = "RUN"
 end sub
@@ -220,13 +233,84 @@ sub OnPlayerExit()
     ShowScreen(m.detailScreen)
 end sub
 
+' ---------- streams (M2) ----------
+
 sub OnPlayRequested()
-    ' Task 8 substitui: hoje o Detail ainda mostra stub — nada a fazer
+    m.pendingStreamsMode = ""
+    itemId = m.detailScreen.playItemId
+    if itemId = "" then
+        return
+    end if
+    StartStreamTask(m.currentItem.type, itemId)
+end sub
+
+' picker só p/ filme (stream de série sem episódio não é contrato congelado — T-judgment 1)
+sub OnStreamsRequested()
+    m.pendingStreamsMode = "pick"
+    StartStreamTask(m.currentItem.type, m.currentItem.id)
+end sub
+
+sub StartStreamTask(stype as string, sid as string)
+    ' guarda o id REALMENTE tocado (episódio = tt:s:e) — resume/legendas/player usam ele
+    m.currentPlayItemId = sid
+    m.bootSpinner.visible = true
+    if m.streamTask = invalid then
+        m.streamTask = createObject("roSGNode", "StreamTask")
+        m.streamTask.observeField("success", "OnStreamsLoaded")
+        m.streamTask.observeField("error", "OnStreamsError")
+    end if
+    m.streamTask.streamType = stype
+    m.streamTask.streamId = sid
+    m.streamTask.control = "STOP"
+    m.streamTask.control = "RUN"
+end sub
+
+sub OnStreamsLoaded()
+    ' guard antes do spinner: StreamTask zera success no início do execute — o fire
+    ' espúrio (false) não deve apagar o spinner nem seguir adiante.
+    if not m.streamTask.success then
+        return
+    end if
+    m.bootSpinner.visible = false
+    m.streams = parseJson(m.streamTask.streamsJson)
+    if m.pendingStreamsMode = "pick" then
+        m.pendingStreamsMode = ""
+        ShowStreams()
+    else
+        StartPlay(0)
+    end if
+end sub
+
+sub OnStreamsError()
+    ' idem: execute zera error="" no início — fire espúrio sai sem tocar em nada.
+    if m.streamTask.error = "" then
+        return
+    end if
+    m.bootSpinner.visible = false
+    m.homeScreen.error = m.streamTask.error
+end sub
+
+sub ShowStreams()
+    ' recreate a cada abertura: node fresco garante itemSelected/streamPicked zerados
+    ' (mesma classe de deadness do itemSelected do M1); ""→json segue o marker do StartPlay.
+    m.streamsScreen = createObject("roSGNode", "StreamsScreen")
+    m.streamsScreen.observeField("streamPicked", "OnStreamPicked")
+    m.streamsScreen.streamsJson = ""
+    m.streamsScreen.streamsJson = m.streamTask.streamsJson
+    ShowScreen(m.streamsScreen)
+end sub
+
+sub OnStreamPicked()
+    StartPlay(m.streamsScreen.streamPicked)
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
     if press and key = "back" and m.currentScreen <> invalid then
         name = m.currentScreen.subtype()
+        if name = "StreamsScreen" and m.detailScreen <> invalid then
+            ShowScreen(m.detailScreen)
+            return true
+        end if
         if name = "DetailScreen" and m.homeScreen <> invalid then
             ShowScreen(m.homeScreen)
             return true
