@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="ProfileScreen" extends="Group" initialFocus="profileGrid">
+    <script type="text/brightscript" uri="pkg:/source/lib/Models.brs" />
+    <script type="text/brightscript" uri="ProfileScreen.brs" />
+    <interface>
+        <field id="profilesJson" type="string" onChange="OnProfilesSet" />
+        <field id="profileSelected" type="int" value="0" />
+    </interface>
+    <children>
+        <Label id="headline" translation="[80, 120]" text="Quem está assistindo?" font="font:LargeSystemFont" />
+        <MarkupGrid id="profileGrid" translation="[80, 260]" itemComponentName="ProfileItem" itemSize="[[280, 300]]" numColumns="3" itemSpacing="[40, 40]" />
+    </children>
+</component>

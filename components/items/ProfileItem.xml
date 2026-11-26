@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="ProfileItem" extends="Group">
+    <script type="text/brightscript" uri="ProfileItem.brs" />
+    <interface>
+        <field id="itemContent" type="node" onChange="OnContentSet" />
+        <field id="focusPercent" type="float" onChange="OnFocusChanged" />
+    </interface>
+    <children>
+        <Rectangle id="tile" width="240" height="240" color="0x1E88E5FF" />
+        <Label id="initial" translation="[0, 80]" width="240" horizAlign="center" font="font:LargeSystemFont" />
+        <Label id="name" translation="[0, 250]" width="240" horizAlign="center" font="font:SmallSystemFont" />
+    </children>
+</component>
