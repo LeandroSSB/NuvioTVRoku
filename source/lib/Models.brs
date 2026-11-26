@@ -3,7 +3,7 @@
 ' Formas congeladas nos contratos 04 (catalog), 05 (meta série), 09 (walk completo).
 
 function ParseManifest(manifest as object) as object
-    out = { types: [], catalogs: [], hasMeta: false, hasStream: false }
+    out = { types: [], catalogs: [], hasMeta: false, hasStream: false, hasSubtitles: false }
     if manifest = invalid then
         return out
     end if
@@ -32,6 +32,9 @@ function ParseManifest(manifest as object) as object
             end if
             if resName = "stream" then
                 out.hasStream = true
+            end if
+            if resName = "subtitles" then
+                out.hasSubtitles = true
             end if
         end for
     end if
