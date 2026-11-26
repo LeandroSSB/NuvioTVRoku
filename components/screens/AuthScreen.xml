@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="AuthScreen" extends="Group" initialFocus="emailKeyboard">
+    <script type="text/brightscript" uri="AuthScreen.brs" />
+    <interface>
+        <field id="error" type="string" onChange="OnErrorSet" />
+        <field id="email" type="string" value="" />
+        <field id="password" type="string" value="" />
+        <field id="signInRequested" type="bool" value="false" />
+    </interface>
+    <children>
+        <Label id="headline" translation="[80, 120]" text="Entrar no Nuvio TV" font="font:LargeSystemFont" />
+        <Label id="hint" translation="[80, 180]" text="Sua conta do backend Nuvio (e-mail e senha)." font="font:SmallSystemFont" />
+        <Keyboard id="emailKeyboard" translation="[80, 250]" />
+        <Keyboard id="passKeyboard" translation="[80, 560]" />
+        <Button id="signInButton" translation="[80, 860]" text="Entrar" />
+        <Label id="error" translation="[700, 870]" width="500" height="60" font="font:SmallSystemFont" color="0xE57373" wrap="true" />
+    </children>
+</component>
