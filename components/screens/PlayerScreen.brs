@@ -4,7 +4,8 @@
 ' (subtitleTrack = TrackName), fallback por erro (state "error" + errorCode -5 =
 ' unsupported media → MainScene avança stream), resume: seek inicial + save periódico
 ' (Timer 15s em playing; pause/back salvam; finished limpa). Back = salva posição +
-' exitRequested.
+' exitRequested. M3: progressPing (JSON {position,duration} em segundos) emitido no
+' fire do timer, no paused e no back — MainScene observa e faz push ao servidor.
 
 sub init()
     m.video = m.top.findNode("player")
@@ -82,6 +83,7 @@ sub OnPlayerState()
     else if state = "paused" or state = "buffering" or state = "stopping" or state = "stopped" then
         if state = "paused" and m.top.itemId <> "" then
             ResumeSavePosition(m.top.itemId, m.video.position)
+            EmitProgressPing()
         end if
     end if
 end sub
@@ -89,6 +91,7 @@ end sub
 sub OnSaveTimer()
     if m.video.state = "playing" and m.top.itemId <> "" then
         ResumeSavePosition(m.top.itemId, m.video.position)
+        EmitProgressPing()
     end if
 end sub
 
@@ -99,9 +102,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
         if seconds > 0 and m.top.itemId <> "" then
             ResumeSavePosition(m.top.itemId, seconds)
         end if
+        ' ping ANTES do video stop — depois dele o position zera e o push perderia a posição
+        EmitProgressPing()
         m.video.control = "stop"
         m.top.exitRequested = true
         return true
     end if
     return false
 end function
+
+' Ping p/ o MainScene (push M3): JSON {position, duration} em segundos do Video node.
+sub EmitProgressPing()
+    ping = { position: m.video.position, duration: m.video.duration }
+    m.top.progressPing = FormatJson(ping)
+end sub
