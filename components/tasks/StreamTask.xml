@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="StreamTask" extends="Task">
+    <script type="text/brightscript" uri="pkg:/source/config/Config.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Http.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Session.brs" />
+    <script type="text/brightscript" uri="pkg:/source/auth/AuthClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Addons.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Models.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Streams.brs" />
+    <script type="text/brightscript" uri="StreamTask.brs" />
+    <interface>
+        <field id="streamType" type="string" value="movie" />
+        <field id="streamId" type="string" value="" />
+        <field id="streamsJson" type="string" value="" />
+        <field id="success" type="bool" value="false" />
+        <field id="error" type="string" value="" />
+    </interface>
+</component>
