@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="HomeScreen" extends="Group" initialFocus="rows">
+    <script type="text/brightscript" uri="HomeScreen.brs" />
+    <interface>
+        <field id="initialRowsJson" type="string" />
+        <field id="pendingJson" type="string" />
+        <field id="addonsJson" type="string" />
+        <field id="error" type="string" onChange="OnErrorSet" />
+        <field id="itemSelected" type="string" />
+    </interface>
+    <children>
+        <Label id="header" translation="[60, 50]" text="Nuvio TV" font="font:LargeSystemFont" />
+        <BusySpinner id="spinner" translation="[600, 340]" visible="true" spin="true" />
+        <RowList id="rows" translation="[60, 110]" numRows="2" rowItemSize="[[240, 405]]" itemComponentName="PosterItem" itemSpacing="[30, 25]" rowFocusAnimationStyle="fixedFocusWrap" />
+        <Label id="errorLabel" translation="[60, 650]" width="1160" font="font:SmallSystemFont" color="0xE57373" />
+    </children>
+</component>

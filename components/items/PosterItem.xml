@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="PosterItem" extends="Group">
+    <script type="text/brightscript" uri="PosterItem.brs" />
+    <interface>
+        <field id="itemContent" type="node" onChange="OnContentSet" />
+        <field id="focusPercent" type="float" onChange="OnFocusChanged" />
+    </interface>
+    <children>
+        <Poster id="poster" width="240" height="360" loadDisplayMode="scaleToFit" />
+        <Label id="name" translation="[0, 368]" width="240" height="28" horizAlign="center" font="font:SmallestSystemFont" />
+        <Label id="rating" translation="[150, 330]" width="80" horizAlign="right" font="font:SmallestSystemFont" />
+    </children>
+</component>
