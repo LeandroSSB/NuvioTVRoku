@@ -3,10 +3,6 @@
 ' Default: backend oficial. Override self-host: setBackendUrl() (Settings, M4) —
 ' persistido em roRegistrySection "nuvio". Trocar backend exige re-login.
 
-function getAppVersion() as string
-    return "0.1.0"
-end function
-
 function getBackendUrl() as string
     reg = createObject("roRegistrySection", "nuvio")
     if reg.exists("backend_url")

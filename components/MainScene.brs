@@ -108,11 +108,11 @@ sub OnItemSelected()
     if itemJson = invalid or itemJson = "" then
         return
     end if
+    m.homeScreen.itemSelected = ""
     if m.detailScreen = invalid then
         m.detailScreen = createObject("roSGNode", "DetailScreen")
     end if
     m.detailScreen.itemJson = itemJson
-    m.detailScreen.addonsJson = m.homeScreen.addonsJson
     m.detailScreen.metaJson = ""
     ShowScreen(m.detailScreen)
     m.bootSpinner.visible = true

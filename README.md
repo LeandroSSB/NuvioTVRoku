@@ -47,6 +47,11 @@ Deliberate M1 cuts (tracked for M4+): profile PIN, profile create/edit/delete,
 logout UI, "remember last profile" toggle, avatar images (color tile + initial
 instead).
 
+- Full-charset password entry: the on-screen MiniKeyboard is case-insensitive —
+  use the Roku mobile app keyboard or voice input for passwords with
+  uppercase/symbols (the standard path on Roku); a full-Keyboard/KeyboardDialog
+  flow is a device-phase decision.
+
 ## Build & lint
 
 `scripts/lint-megalan.sh` (bslint) and `scripts/stage-megalan.sh`
@@ -66,7 +71,6 @@ contracts/          curl suite that freezes the JSON contracts the app consumes
 scripts/            lint-megalan.sh (bslint in Docker on a remote host)
 package.json        toolchain (bslint, roku-deploy)
 bslint.json         lint rules
-roku_deploy.json    sideload config
 LICENSE             GPLv3
 ```
 
