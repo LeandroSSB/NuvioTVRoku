@@ -38,7 +38,7 @@ function AuthLogin(anonKey as string, email as string, password as string) as ob
     resp = HttpPostJson(getBackendUrl() + "/auth/v1/token?grant_type=password", AuthHeaders(anonKey), body)
     if not resp.ok or resp.json = invalid then
         err = resp.error
-        if resp.json <> invalid and resp.json.doesExist("error_description") then
+        if resp.json <> invalid and resp.json.doesExist("error_description") and resp.json.error_description <> invalid then
             err = err + ": " + resp.json.error_description
         end if
         return { ok: false, error: err, accessToken: "", refreshToken: "" }

@@ -14,6 +14,7 @@ sub init()
     m.top.observeField("initialRowsJson", "OnInitialRows")
     m.rowTask = createObject("roSGNode", "CatalogTask")
     m.rowTask.observeField("success", "OnRowLoaded")
+    m.rowTask.observeField("error", "OnRowTaskError")
 end sub
 
 sub OnInitialRows()
@@ -68,9 +69,21 @@ sub OnRowFocused()
     if m.pending.doesExist(key) then
         m.rowTask.catalogUrl = m.pending[key]
         m.rowTask.rowIndex = info[0]
+        m.rowTask.mode = "row"
+        m.currentFetchKey = key
+        m.currentFetchUrl = m.pending[key]
         m.rowTask.control = "STOP"
         m.rowTask.control = "RUN"
         m.pending.delete(key)
+    end if
+end sub
+
+sub OnRowTaskError()
+    if m.rowTask.error = "" then
+        return
+    end if
+    if m.currentFetchKey <> invalid and m.currentFetchUrl <> invalid and m.currentFetchKey <> "" then
+        m.pending[m.currentFetchKey] = m.currentFetchUrl
     end if
 end sub
 
@@ -81,6 +94,12 @@ sub OnRowLoaded()
     rowIdx = m.rowTask.rowIndex
     content = m.rowList.content
     if content = invalid or rowIdx >= content.getChildCount() then
+        return
+    end if
+    if rowIdx >= m.rowsData.count() then
+        return
+    end if
+    if m.rowsData[rowIdx].catalogUrl <> m.rowTask.catalogUrl then
         return
     end if
     items = parseJson(m.rowTask.itemsJson)

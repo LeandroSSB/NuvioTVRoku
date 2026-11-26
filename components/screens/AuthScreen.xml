@@ -9,11 +9,11 @@
         <field id="signInRequested" type="bool" value="false" />
     </interface>
     <children>
-        <Label id="headline" translation="[80, 120]" text="Entrar no Nuvio TV" font="font:LargeSystemFont" />
-        <Label id="hint" translation="[80, 180]" text="Sua conta do backend Nuvio (e-mail e senha)." font="font:SmallSystemFont" />
-        <Keyboard id="emailKeyboard" translation="[80, 250]" />
-        <Keyboard id="passKeyboard" translation="[80, 560]" />
-        <Button id="signInButton" translation="[80, 860]" text="Entrar" />
-        <Label id="error" translation="[700, 870]" width="500" height="60" font="font:SmallSystemFont" color="0xE57373" wrap="true" />
+        <Label id="headline" translation="[60, 40]" text="Entrar no Nuvio TV" font="font:LargeSystemFont" />
+        <Label id="hint" translation="[60, 100]" text="Sua conta do backend Nuvio (e-mail e senha)." font="font:SmallSystemFont" />
+        <MiniKeyboard id="emailKeyboard" translation="[60, 140]" />
+        <MiniKeyboard id="passKeyboard" translation="[490, 140]" />
+        <Button id="signInButton" translation="[60, 644]" text="Entrar" />
+        <Label id="error" translation="[420, 650]" width="560" height="56" font="font:SmallSystemFont" color="0xE57373" wrap="true" />
     </children>
 </component>

@@ -5,7 +5,6 @@
     <script type="text/brightscript" uri="DetailScreen.brs" />
     <interface>
         <field id="itemJson" type="string" onChange="OnItemSet" />
-        <field id="addonsJson" type="string" />
         <field id="metaJson" type="string" onChange="OnMetaSet" />
     </interface>
     <children>

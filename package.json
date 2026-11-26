@@ -1,7 +1,7 @@
 {
   "name": "nuvio-tv-roku",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Nuvio TV for Roku — BrightScript/SceneGraph port of NuvioTV",
   "license": "GPL-3.0",
   "scripts": {

@@ -1,5 +1,0 @@
-{
-  "rootDir": ".",
-  "files": ["manifest", "source/**/*.*", "components/**/*.*", "assets/**/*.*"],
-  "outFile": "dist/NuvioTVRoku.zip"
-}
