@@ -5,6 +5,7 @@
     <interface>
         <field id="initialRowsJson" type="string" />
         <field id="pendingJson" type="string" />
+        <field id="prependRowJson" type="string" onChange="OnPrependRow" />
         <field id="addonsJson" type="string" />
         <field id="error" type="string" onChange="OnErrorSet" />
         <field id="itemSelected" type="string" />

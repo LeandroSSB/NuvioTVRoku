@@ -26,6 +26,7 @@ sub init()
     m.streamTaskGeneration = 0
     m.progressRows = []
     m.progressTask = invalid
+    m.progressMode = ""
     m.bootSpinner = m.top.findNode("bootSpinner")
     if SessionGetRefreshToken() <> "" then
         StartSessionTask("boot")
@@ -95,6 +96,9 @@ sub ShowHome(profileId as integer)
     m.homeTask.profileId = profileId
     m.homeTask.control = "STOP"
     m.homeTask.control = "RUN"
+    ' M3: sync de progresso em background — as rows da home não esperam por ele;
+    ' a row CW aparece quando o enrich termina (spinner NÃO é gateado aqui).
+    StartProgressPull()
 end sub
 
 sub OnHomeLoaded()
@@ -262,15 +266,56 @@ sub StartProgressPush(itemId as string, contentType as string, posSeconds as int
     if m.progressTask = invalid then
         m.progressTask = createObject("roSGNode", "ProgressTask")
         m.progressTask.observeField("error", "OnProgressPushError")
+        ' success também observado: o MESMO node pode ter sido criado pelo pull/cw
+        ' da home (e vice-versa o push reusa o node do pull — observers são os dois)
+        m.progressTask.observeField("success", "OnProgressTaskSuccess")
     end if
     m.progressTask.mode = "push"
     m.progressTask.progressRowJson = FormatJson(ProgressToServerRow(itemId, contentType, posSeconds, durSeconds))
+    ' classifica o success do push como no-op no OnProgressTaskSuccess — o node é
+    ' compartilhado com pull/cw e um success de push não pode cair no branch "cw"
+    ' (double-prepend) nem no "pull" (re-chain) de um ciclo anterior
+    m.progressMode = "push"
     m.progressTask.control = "STOP"
     m.progressTask.control = "RUN"
 end sub
 
 sub OnProgressPushError()
     ' silencioso por design: sync falhou → próximo ping tenta de novo (Registry local é o fallback)
+end sub
+
+' pull → cw em DOIS estágios no mesmo task node: o pull popula o cache de resume
+' (m.progressRows para o StartPlay pref-servidor) e o cw enriquece para a row da
+' home. OnProgressTaskSuccess faz o split por m.progressMode.
+sub StartProgressPull()
+    if m.progressTask = invalid then
+        m.progressTask = createObject("roSGNode", "ProgressTask")
+        m.progressTask.observeField("success", "OnProgressTaskSuccess")
+        m.progressTask.observeField("error", "OnProgressPushError")
+    end if
+    m.progressTask.mode = "pull"
+    m.progressTask.control = "STOP"
+    m.progressTask.control = "RUN"
+    m.progressMode = "pull"
+end sub
+
+sub OnProgressTaskSuccess()
+    if not m.progressTask.success then
+        return
+    end if
+    if m.progressMode = "pull" then
+        rows = parseJson(m.progressTask.rowsJson)
+        if rows <> invalid and type(rows) = "roArray" then
+            m.progressRows = rows
+        end if
+        ' segundo estágio: enriquecer e pedir o prepend
+        m.progressTask.mode = "cw"
+        m.progressTask.control = "STOP"
+        m.progressTask.control = "RUN"
+        m.progressMode = "cw"
+    else if m.progressMode = "cw" and m.progressTask.rowsJson <> "" and m.currentScreen <> invalid and m.currentScreen.isSameNode(m.homeScreen) then
+        m.homeScreen.prependRowJson = m.progressTask.rowsJson
+    end if
 end sub
 
 function ProgressFindPosition(rows as object, itemId as string) as integer
