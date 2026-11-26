@@ -16,6 +16,7 @@ sub init()
     m.streamIndex = 0
     m.currentItem = invalid
     m.subsReady = false
+    m.subsJson = ""
     m.bootSpinner = m.top.findNode("bootSpinner")
     if SessionGetRefreshToken() <> "" then
         StartSessionTask("boot")
@@ -160,6 +161,12 @@ sub StartPlay(index as integer)
         m.playerScreen.observeField("playFinished", "OnPlayFinished")
         m.playerScreen.observeField("exitRequested", "OnPlayerExit")
     end if
+    ' reset dos out-bools + streamJson="" antes de re-injetar: garante que OnStreamSet
+    ' dispare ("" → json muda o campo) mesmo em replay do mesmo item.
+    m.playerScreen.playFinished = false
+    m.playerScreen.playFailed = false
+    m.playerScreen.exitRequested = false
+    m.playerScreen.streamJson = ""
     m.playerScreen.itemId = m.currentItem.id
     m.playerScreen.resumeSeconds = ResumeGetPosition(m.currentItem.id)
     m.playerScreen.subsJson = m.subsJson
@@ -187,11 +194,14 @@ sub OnSubsLoaded()
 end sub
 
 sub OnPlayFailed()
+    if not m.playerScreen.playFailed then return
     nextIndex = m.streamIndex + 1
     if nextIndex < m.streams.count() then
-        ' spec §4: direct-play falhou → próxima stream (mesma tela, re-injetada)
-        m.playerScreen.playFailed = false
+        ' spec §4: direct-play falhou → próxima stream (mesma tela, re-injetada).
+        ' Reset do playFailed DEPOIS de StartPlay: observers em main-thread disparam
+        ' síncronos — reset antes re-entraria no handler e dispararia retry duplo.
         StartPlay(nextIndex)
+        m.playerScreen.playFailed = false
     else
         m.currentScreen = m.playerScreen
         m.top.removeChild(m.playerScreen)
@@ -201,10 +211,12 @@ sub OnPlayFailed()
 end sub
 
 sub OnPlayFinished()
+    if not m.playerScreen.playFinished then return
     ShowScreen(m.detailScreen)
 end sub
 
 sub OnPlayerExit()
+    if not m.playerScreen.exitRequested then return
     ShowScreen(m.detailScreen)
 end sub
 

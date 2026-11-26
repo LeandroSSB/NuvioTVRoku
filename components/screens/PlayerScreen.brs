@@ -2,19 +2,26 @@
 ' PlayerScreen — Video node nativo (spec §3.4): url+streamFormat no content node,
 ' legendas sidecar SRT via SubtitleTracks (contrato 11) com auto-select "por"
 ' (subtitleTrack = TrackName), fallback por erro (state "error" + errorCode -5 =
-' unsupported media → MainScene avança stream), resume seek inicial (T7 liga o loop
-' periódico). Back = salva posição + exitRequested.
+' unsupported media → MainScene avança stream), resume: seek inicial + save periódico
+' (Timer 15s em playing; pause/back salvam; finished limpa). Back = salva posição +
+' exitRequested.
 
 sub init()
     m.video = m.top.findNode("player")
     m.video.observeField("state", "OnPlayerState")
-    m.top.observeField("streamJson", "OnStreamSet")
-    m.top.observeField("subsJson", "OnSubsSet")
+    ' streamJson/subsJson usam os onChange declarados no XML — observeField duplicado
+    ' dispararia o handler duas vezes por mudança.
+    m.saveTimer = m.top.findNode("saveTimer")
+    m.saveTimer.observeField("fire", "OnSaveTimer")
     m.subTracks = []
     m.subTrackName = ""
 end sub
 
 sub OnStreamSet()
+    ' "" = marker do reset em StartPlay — payload legítimo nunca é vazio
+    if m.top.streamJson = "" then
+        return
+    end if
     stream = parseJson(m.top.streamJson)
     if stream = invalid or stream.url = "" then
         m.top.playFailed = true
@@ -54,21 +61,37 @@ end sub
 sub OnPlayerState()
     state = m.video.state
     if state = "error" then
+        m.saveTimer.control = "stop"
         m.top.playFailed = true
         return
     end if
     if state = "finished" then
+        m.saveTimer.control = "stop"
         ResumeClear(m.top.itemId)
         m.top.playFinished = true
         return
     end if
-    if state = "playing" and m.subTrackName <> "" then
-        m.video.subtitleTrack = m.subTrackName
+    if state = "playing" then
+        m.saveTimer.control = "start"
+        if m.subTrackName <> "" then
+            m.video.subtitleTrack = m.subTrackName
+        end if
+    else if state = "paused" or state = "buffering" or state = "stopping" or state = "stopped" then
+        if state = "paused" and m.top.itemId <> "" then
+            ResumeSavePosition(m.top.itemId, m.video.position)
+        end if
+    end if
+end sub
+
+sub OnSaveTimer()
+    if m.video.state = "playing" and m.top.itemId <> "" then
+        ResumeSavePosition(m.top.itemId, m.video.position)
     end if
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
     if press and key = "back" then
+        m.saveTimer.control = "stop"
         seconds = m.video.position
         if seconds > 0 and m.top.itemId <> "" then
             ResumeSavePosition(m.top.itemId, seconds)

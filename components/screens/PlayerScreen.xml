@@ -15,5 +15,6 @@
     </interface>
     <children>
         <Video id="player" width="1280" height="720" enableTrickPlay="true" />
+        <Timer id="saveTimer" repeat="true" duration="15" enabled="false" />
     </children>
 </component>
