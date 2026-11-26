@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="MetaTask" extends="Task">
+    <script type="text/brightscript" uri="pkg:/source/lib/Http.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Addons.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Models.brs" />
+    <script type="text/brightscript" uri="MetaTask.brs" />
+    <interface>
+        <field id="metaType" type="string" value="movie" />
+        <field id="metaId" type="string" value="" />
+        <field id="addonsJson" type="string" value="" />
+        <field id="metaJson" type="string" value="" />
+        <field id="success" type="bool" value="false" />
+        <field id="error" type="string" value="" />
+    </interface>
+</component>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="DetailScreen" extends="Group" initialFocus="play">
+    <script type="text/brightscript" uri="pkg:/source/lib/Models.brs" />
+    <script type="text/brightscript" uri="DetailScreen.brs" />
+    <interface>
+        <field id="itemJson" type="string" onChange="OnItemSet" />
+        <field id="addonsJson" type="string" />
+        <field id="metaJson" type="string" onChange="OnMetaSet" />
+    </interface>
+    <children>
+        <Poster id="backdrop" width="1280" height="720" loadDisplayMode="scaleToFill" />
+        <Rectangle id="shade" width="1280" height="720" color="0x000000" opacity="0.62" />
+        <Poster id="poster" translation="[60, 90]" width="220" height="330" />
+        <Label id="title" translation="[320, 90]" width="880" font="font:LargeSystemFont" />
+        <Label id="metaInfo" translation="[320, 150]" width="880" font="font:SmallSystemFont" color="0x00F8F8" />
+        <Label id="description" translation="[320, 200]" width="880" height="200" font="font:SmallSystemFont" wrap="true" />
+        <Button id="play" translation="[320, 420]" text="Assistir" visible="false" />
+        <LabelList id="seasons" translation="[60, 430]" itemSize="[180, 50]" visible="false" />
+        <MarkupGrid id="episodes" translation="[280, 430]" itemComponentName="EpisodeItem" itemSize="[[940, 260]]" numColumns="3" itemSpacing="[20, 30]" visible="false" />
+    </children>
+</component>
