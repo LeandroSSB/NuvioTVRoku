@@ -34,6 +34,15 @@ FAKE_POST="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/watch_progress?o
     -d "{\"content_id\":\"ttTEST0000\",\"content_type\":\"movie\",\"position\":5000,\"duration\":100000,\"progress_key\":\"ttTEST0000\",\"video_id\":\"ttTEST0000\",\"last_watched\":1700000000000,\"profile_id\":1,\"user_id\":\"$USER_ID\"}")"
 assert_contains "POST upsert cria row fake" '"ttTEST0000"' "$FAKE_POST"
 
+# Safety net p/ set -e abortar no meio do round-trip: apaga as rows fake no EXIT.
+# '|| true' evita que o trap mascare o exit code original; o DELETE explícito +
+# assert zero-remaining no fim continuam sendo o caminho principal.
+cleanup_fakes() {
+    curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=in.(ttTEST0000,ttTEST0001)" \
+        -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" -o /dev/null || true
+}
+trap cleanup_fakes EXIT
+
 FAKE_REPOST="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/watch_progress?on_conflict=user_id,profile_id,progress_key" \
     -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
     -H "Prefer: return=representation,resolution=merge-duplicates" \

@@ -86,6 +86,12 @@ function ProgressToServerRow(itemId as string, contentType as string, positionSe
             position: ProgressSecondsToMs(positionSeconds), duration: ProgressSecondsToMs(durationSeconds),
             progress_key: ProgressBuildKey(itemId), video_id: ProgressBuildVideoId(itemId),
             last_watched: CreateObject("roDateTime").AsSecondsIntervalSince1970() * 1000& }
+    ' duration=0 (node de video sem duration antes do play) NÃO vai no upsert:
+    ' merge-duplicates só toca nas keys presentes — omitir preserva o duration
+    ' do servidor em vez de zerá-lo (row ficaria >95% vista/filtrada do CW).
+    if durationSeconds <= 0 then
+        row.delete("duration")
+    end if
     if ProgressIsEpisode(itemId) then
         q2 = ProgressLastColon(itemId)
         q1 = ProgressLastColon(itemId.left(q2))

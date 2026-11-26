@@ -68,7 +68,8 @@ instead), manual subtitle/audio track selection.
 `scripts/lint-megalan.sh` (bslint) and `scripts/stage-megalan.sh`
 (roku-deploy package → `dist/*.zip`, validates bundling without a device) run
 BrightScript tooling in Docker on a remote host; nothing heavy runs locally.
-CI runs bslint + stage on GitHub Actions (no secrets needed).
+CI runs bslint, the stage-zip gate, and the live contract suite on GitHub
+Actions (repo secrets; forks skip the contracts job).
 
 ## Repo layout
 

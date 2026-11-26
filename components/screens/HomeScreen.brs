@@ -32,21 +32,13 @@ sub OnInitialRows()
         i = i + 1
     end while
     m.rowList.showRowLabel = labels
-    content = createObject("roSGNode", "ContentNode")
-    for each row in rows
-        rowNode = content.createChild("ContentNode")
-        rowNode.title = row.title
-        for each item in row.items
-            AppendItem(rowNode, item)
-        end for
-    end for
+    RebuildRowsContent()
     m.pending = { }
     if pending <> invalid and type(pending) = "roArray" then
         for each p in pending
             m.pending[p.rowIndex.toStr()] = p.catalogUrl
         end for
     end if
-    m.rowList.content = content
     m.spinner.visible = false
 end sub
 
@@ -129,16 +121,24 @@ sub OnRowItemSelected()
 end sub
 
 ' M3: row "Continuar assistindo" chega pronta do ProgressTask (mode="cw") e entra
-' na posição 0 REBUILDANDO o content: roArray não tem unshift/prepend, então
-' newRows = [cw] + antigos; o pending map shifta +1 (os catálogos agora são as
-' rows 1..n) para o lazy-load no foco continuar acertando. Re-atribuir o content
-' devolve o foco para a row 0 (a CW) — comportamento aceitável de TV.
+' na posição 0 REBUILDANDO o content: newRows = [cw] + antigos; o pending map
+' shifta +1 (os catálogos agora são as rows 1..n) para o lazy-load no foco
+' continuar acertando. Re-atribuir o content devolve o foco para a row 0 (a CW)
+' — comportamento aceitável de TV. Re-prepend (re-seleção de perfil) SUBSTITUI
+' a row CW existente em vez de empilhar duplicata (sem shift de pending).
 sub OnPrependRow()
     cw = parseJson(m.top.prependRowJson)
     if cw = invalid or type(cw) <> "roArray" or cw.count() = 0 then
         return
     end if
     if m.rowList.content = invalid then
+        return
+    end if
+    cwRow = cw[0]
+    if m.rowsData.count() > 0 and m.rowsData[0].title = "Continuar assistindo" then
+        ' substitui a row CW existente (re-seleção de perfil não empilha duplicatas)
+        m.rowsData[0] = cwRow
+        RebuildRowsContent()
         return
     end if
     shifted = { }
@@ -151,6 +151,13 @@ sub OnPrependRow()
         newRows.push(row)
     end for
     m.rowsData = newRows
+    RebuildRowsContent()
+end sub
+
+' Content das rows construído a partir do m.rowsData — caminho único usado por
+' OnInitialRows (build inicial), OnPrependRow (insert CW) e pelo replace-path
+' do dedupe (CW no índice 0 trocada sem shiftar pending).
+sub RebuildRowsContent()
     content = createObject("roSGNode", "ContentNode")
     for each row in m.rowsData
         rowNode = content.createChild("ContentNode")

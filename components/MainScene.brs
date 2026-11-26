@@ -315,6 +315,22 @@ sub OnProgressTaskSuccess()
         m.progressMode = "cw"
     else if m.progressMode = "cw" and m.progressTask.rowsJson <> "" and m.currentScreen <> invalid and m.currentScreen.isSameNode(m.homeScreen) then
         m.homeScreen.prependRowJson = m.progressTask.rowsJson
+    else if m.progressMode = "push" then
+        ' mantém o cache de resume fresco: replay pós-back usa a posição recém-empurrada
+        pushed = parseJson(m.progressTask.progressRowJson)
+        if pushed <> invalid and pushed.doesExist("progress_key") then
+            found = false
+            for i = 0 to m.progressRows.count() - 1
+                if m.progressRows[i].doesExist("progress_key") and m.progressRows[i].progress_key = pushed.progress_key then
+                    m.progressRows[i] = pushed
+                    found = true
+                    exit for
+                end if
+            end for
+            if not found then
+                m.progressRows.unshift(pushed)
+            end if
+        end if
     end if
 end sub
 
