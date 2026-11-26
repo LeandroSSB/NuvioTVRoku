@@ -3,6 +3,7 @@
 <component name="PlayerScreen" extends="Group" initialFocus="player">
     <script type="text/brightscript" uri="pkg:/source/lib/Session.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/Resume.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Progress.brs" />
     <script type="text/brightscript" uri="PlayerScreen.brs" />
     <interface>
         <field id="streamJson" type="string" onChange="OnStreamSet" />
@@ -12,6 +13,7 @@
         <field id="playFinished" type="bool" value="false" />
         <field id="playFailed" type="bool" value="false" />
         <field id="exitRequested" type="bool" value="false" />
+        <field id="progressPing" type="string" value="" />
     </interface>
     <children>
         <Video id="player" width="1280" height="720" enableTrickPlay="true" />

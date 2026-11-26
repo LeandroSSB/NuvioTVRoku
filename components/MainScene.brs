@@ -24,6 +24,8 @@ sub init()
     m.pendingStreamsMode = ""
     m.playGeneration = 0
     m.streamTaskGeneration = 0
+    m.progressRows = []
+    m.progressTask = invalid
     m.bootSpinner = m.top.findNode("bootSpinner")
     if SessionGetRefreshToken() <> "" then
         StartSessionTask("boot")
@@ -171,6 +173,7 @@ sub StartPlay(index as integer)
         m.playerScreen.observeField("playFailed", "OnPlayFailed")
         m.playerScreen.observeField("playFinished", "OnPlayFinished")
         m.playerScreen.observeField("exitRequested", "OnPlayerExit")
+        m.playerScreen.observeField("progressPing", "OnProgressPing")
     end if
     ' reset dos out-bools + streamJson="" antes de re-injetar: garante que OnStreamSet
     ' dispare ("" → json muda o campo) mesmo em replay do mesmo item.
@@ -179,7 +182,13 @@ sub StartPlay(index as integer)
     m.playerScreen.exitRequested = false
     m.playerScreen.streamJson = ""
     m.playerScreen.itemId = m.currentPlayItemId
-    m.playerScreen.resumeSeconds = ResumeGetPosition(m.currentPlayItemId)
+    ' resume prefere a posição do SERVIDOR (cache m.progressRows do pull M3 — ainda []
+    ' até a Task 5 popular); sem row no servidor (ou 0) → fallback Registry local (M2)
+    serverPos = ProgressFindPosition(m.progressRows, m.currentPlayItemId)
+    if serverPos <= 0 then
+        serverPos = ResumeGetPosition(m.currentPlayItemId)
+    end if
+    m.playerScreen.resumeSeconds = serverPos
     ' play novo começa SEM legendas até o SubsTask do item corrente responder
     ' (evita legendas do item anterior vazarem no novo)
     m.subsJson = ""
@@ -237,6 +246,47 @@ sub OnPlayerExit()
     if not m.playerScreen.exitRequested then return
     ShowScreen(m.detailScreen)
 end sub
+
+' ---------- progress sync (M3) ----------
+
+sub OnProgressPing()
+    ping = parseJson(m.playerScreen.progressPing)
+    ' position <= 0 NÃO vai pro servidor: upsert zeraria a row (lose resume cross-device)
+    if ping = invalid or ping.position = invalid or ping.position <= 0 or m.currentItem = invalid then
+        return
+    end if
+    StartProgressPush(m.currentPlayItemId, m.currentItem.type, ping.position, ping.duration)
+end sub
+
+sub StartProgressPush(itemId as string, contentType as string, posSeconds as integer, durSeconds as integer)
+    if m.progressTask = invalid then
+        m.progressTask = createObject("roSGNode", "ProgressTask")
+        m.progressTask.observeField("error", "OnProgressPushError")
+    end if
+    m.progressTask.mode = "push"
+    m.progressTask.progressRowJson = FormatJson(ProgressToServerRow(itemId, contentType, posSeconds, durSeconds))
+    m.progressTask.control = "STOP"
+    m.progressTask.control = "RUN"
+end sub
+
+sub OnProgressPushError()
+    ' silencioso por design: sync falhou → próximo ping tenta de novo (Registry local é o fallback)
+end sub
+
+function ProgressFindPosition(rows as object, itemId as string) as integer
+    if rows = invalid then
+        return 0
+    end if
+    key = ProgressBuildKey(itemId)
+    for each r in rows
+        if r.doesExist("progress_key") and r.progress_key = key then
+            if r.doesExist("position") and r.position <> invalid then
+                return ProgressMsToSeconds(r.position)
+            end if
+        end if
+    end for
+    return 0
+end function
 
 ' ---------- streams (M2) ----------
 

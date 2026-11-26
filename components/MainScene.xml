@@ -3,6 +3,7 @@
 <component name="MainScene" extends="Scene">
     <script type="text/brightscript" uri="pkg:/source/lib/Session.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/Resume.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Progress.brs" />
     <script type="text/brightscript" uri="MainScene.brs" />
     <children>
         <BusySpinner id="bootSpinner" translation="[600, 340]" visible="true" spin="true" />
