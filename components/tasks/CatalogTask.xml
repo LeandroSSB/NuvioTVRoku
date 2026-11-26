@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="CatalogTask" extends="Task">
+    <script type="text/brightscript" uri="pkg:/source/config/Config.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Http.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Session.brs" />
+    <script type="text/brightscript" uri="pkg:/source/auth/AuthClient.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Addons.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Models.brs" />
+    <script type="text/brightscript" uri="CatalogTask.brs" />
+    <interface>
+        <field id="mode" type="string" value="home" />
+        <field id="profileId" type="int" value="0" />
+        <field id="catalogUrl" type="string" value="" />
+        <field id="rowIndex" type="int" value="0" />
+        <field id="rowsJson" type="string" value="" />
+        <field id="pendingJson" type="string" value="" />
+        <field id="addonsJson" type="string" value="" />
+        <field id="itemsJson" type="string" value="" />
+        <field id="success" type="bool" value="false" />
+        <field id="error" type="string" value="" />
+    </interface>
+</component>

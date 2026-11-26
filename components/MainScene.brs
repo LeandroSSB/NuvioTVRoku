@@ -67,7 +67,44 @@ sub OnProfileSelected()
 end sub
 
 sub ShowHome(profileId as integer)
-    ' Task 11 cria HomeScreen aqui
+    if m.homeScreen = invalid then
+        m.homeScreen = createObject("roSGNode", "HomeScreen")
+        m.homeScreen.observeField("itemSelected", "OnItemSelected")
+    end if
+    ShowScreen(m.homeScreen)
+    m.bootSpinner.visible = true
+    if m.homeTask = invalid then
+        m.homeTask = createObject("roSGNode", "CatalogTask")
+        m.homeTask.observeField("success", "OnHomeLoaded")
+        m.homeTask.observeField("error", "OnHomeError")
+    end if
+    m.homeTask.profileId = profileId
+    m.homeTask.control = "STOP"
+    m.homeTask.control = "RUN"
+end sub
+
+sub OnHomeLoaded()
+    m.bootSpinner.visible = false
+    if m.homeTask.success then
+        m.homeScreen.addonsJson = m.homeTask.addonsJson
+        m.homeScreen.initialRowsJson = m.homeTask.rowsJson
+        m.homeScreen.pendingJson = m.homeTask.pendingJson
+    end if
+end sub
+
+sub OnHomeError()
+    m.bootSpinner.visible = false
+    err = m.homeTask.error
+    if err = "session_expired" then
+        SessionClearSession()
+        StartSessionTask("boot")
+        return
+    end if
+    m.homeScreen.error = err
+end sub
+
+sub OnItemSelected()
+    ' handler real entra na Task 12 — stub evita callback ausente neste commit
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
