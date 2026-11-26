@@ -82,7 +82,7 @@ function FetchProfiles(anonKey as string, accessToken as string) as object
     url = getBackendUrl() + "/rest/v1/profiles?select=profile_id,name,avatar_color_hex,pin_enabled&order=profile_index.asc"
     resp = HttpGetJson(url, AuthBearerHeaders(anonKey, accessToken))
     if not resp.ok or resp.json = invalid or type(resp.json) <> "roArray" then
-        return []
+        return invalid
     end if
     return resp.json
 end function

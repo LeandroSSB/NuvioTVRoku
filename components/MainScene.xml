@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
 <component name="MainScene" extends="Scene">
-    <script type="text/brightscript" uri="pkg:/source/config/Config.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Session.brs" />
     <script type="text/brightscript" uri="MainScene.brs" />
     <children>
-        <Label id="title" translation="[80, 80]" font="font:LargeSystemFont" />
-        <Label id="detail" translation="[80, 180]" font="font:SmallSystemFont" />
+        <BusySpinner id="bootSpinner" translation="[600, 340]" visible="true" spin="true" />
     </children>
 </component>
