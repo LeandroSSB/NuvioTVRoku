@@ -63,3 +63,45 @@ function SupportsType(types as object, wanted as string) as boolean
     end for
     return false
 end function
+
+' M4 (contrato 13): catálogo suporta busca? O manifest declara extras no catálogo
+' ({ extra: [{ name: "search" }] }) — zero hardcode de id de addon.
+function HasSearchExtra(catalog as object) as boolean
+    if catalog = invalid or not catalog.doesExist("extra") or catalog.extra = invalid then
+        return false
+    end if
+    for each e in catalog.extra
+        if e.doesExist("name") and e.name = "search" then
+            return true
+        end if
+    end for
+    return false
+end function
+
+' Percent-encoder com semântica encodeURIComponent p/ valores de extra PATH (contrato 13).
+' Byte a byte (len()/mid() percorrem BYTES em BrightScript — UTF-8 sai correto):
+' só os unreserved de RFC 3986 passam; todo o resto vira %XX. O global EncodeUriComponent
+' do plano não é conhecido do toolchain (lint BS1140) — encoder local roda em qualquer firmware.
+function UrlPathEncode(value as string) as string
+    if value.len() = 0 then
+        return ""
+    end if
+    hexChars = "0123456789ABCDEF"
+    out = ""
+    for i = 1 to value.len()
+        ch = value.mid(i, 1)
+        code = Asc(ch)
+        if (code >= 97 and code <= 122) or (code >= 65 and code <= 90) or (code >= 48 and code <= 57) or code = 45 or code = 46 or code = 95 or code = 126 then
+            out = out + ch
+        else
+            out = out + "%" + hexChars.mid(code \ 16 + 1, 1) + hexChars.mid(code mod 16 + 1, 1)
+        end if
+    end for
+    return out
+end function
+
+' Extras Stremio são PATH segments (query ?search= é IGNORADO pelos addons — contrato 13):
+' /catalog/{type}/{id}/search={query}.json com o valor URL-encodado.
+function SearchCatalogUrl(baseUrl as string, catalogType as string, catalogId as string, query as string) as string
+    return baseUrl + "/catalog/" + catalogType + "/" + catalogId + "/search=" + UrlPathEncode(query) + ".json"
+end function

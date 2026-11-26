@@ -12,6 +12,9 @@ sub init()
     m.profileScreen = invalid
     m.homeScreen = invalid
     m.detailScreen = invalid
+    m.searchScreen = invalid
+    m.searchTask = invalid
+    m.detailFromSearch = false
     m.streams = []
     m.streamIndex = 0
     m.currentItem = invalid
@@ -85,6 +88,7 @@ sub ShowHome(profileId as integer)
     if m.homeScreen = invalid then
         m.homeScreen = createObject("roSGNode", "HomeScreen")
         m.homeScreen.observeField("itemSelected", "OnItemSelected")
+        m.homeScreen.observeField("searchRequested", "OnHomeSearchRequested")
     end if
     ShowScreen(m.homeScreen)
     m.bootSpinner.visible = true
@@ -121,12 +125,101 @@ sub OnHomeError()
     m.homeScreen.error = err
 end sub
 
+' ---------- busca (M4) ----------
+
+' Home → SearchScreen (create-once; botão Buscar togglea searchRequested e o
+' handler consome+reseta — reabertura volta a disparar)
+sub OnHomeSearchRequested()
+    if not m.homeScreen.searchRequested then return
+    m.homeScreen.searchRequested = false
+    ShowSearch()
+end sub
+
+sub ShowSearch()
+    if m.searchScreen = invalid then
+        m.searchScreen = createObject("roSGNode", "SearchScreen")
+        m.searchScreen.observeField("querySubmitted", "OnSearchSubmitted")
+        m.searchScreen.observeField("itemSelected", "OnSearchItemSelected")
+    end if
+    ShowScreen(m.searchScreen)
+end sub
+
+sub OnSearchSubmitted()
+    if not m.searchScreen.querySubmitted then return
+    query = m.searchScreen.query
+    m.searchScreen.querySubmitted = false
+    if query = "" then
+        return
+    end if
+    m.bootSpinner.visible = true
+    if m.searchTask = invalid then
+        m.searchTask = createObject("roSGNode", "SearchTask")
+        m.searchTask.observeField("success", "OnSearchLoaded")
+        m.searchTask.observeField("error", "OnSearchError")
+    end if
+    m.searchTask.query = query
+    m.searchTask.control = "STOP"
+    m.searchTask.control = "RUN"
+end sub
+
+sub OnSearchLoaded()
+    m.bootSpinner.visible = false
+    if m.searchTask.success then
+        m.searchScreen.resultsJson = m.searchTask.resultsJson
+    end if
+end sub
+
+sub OnSearchError()
+    m.bootSpinner.visible = false
+    if m.searchTask.error = "" then return
+    err = m.searchTask.error
+    if err = "session_expired" then
+        SessionClearSession()
+        StartSessionTask("boot")
+        return
+    end if
+    m.searchScreen.error = err
+end sub
+
+' Seleção na grade de resultados → MESMA transição de Detail do OnItemSelected
+' (linhas duplicadas de propósito — repo não fatora; m.detailFromSearch guarda a
+' origem para o back do Detail voltar à busca)
+sub OnSearchItemSelected()
+    itemJson = m.searchScreen.itemSelected
+    if itemJson = invalid or itemJson = "" then
+        return
+    end if
+    m.searchScreen.itemSelected = ""
+    if m.detailScreen = invalid then
+        m.detailScreen = createObject("roSGNode", "DetailScreen")
+        m.detailScreen.observeField("playRequested", "OnPlayRequested")
+        m.detailScreen.observeField("streamsRequested", "OnStreamsRequested")
+    end if
+    m.detailScreen.itemJson = itemJson
+    m.detailScreen.metaJson = ""
+    m.detailFromSearch = true
+    ShowScreen(m.detailScreen)
+    m.bootSpinner.visible = true
+    if m.metaTask = invalid then
+        m.metaTask = createObject("roSGNode", "MetaTask")
+        m.metaTask.observeField("success", "OnMetaLoaded")
+        m.metaTask.observeField("error", "OnMetaError")
+    end if
+    m.currentItem = parseJson(itemJson)
+    m.metaTask.addonsJson = m.homeScreen.addonsJson
+    m.metaTask.metaType = m.currentItem.type
+    m.metaTask.metaId = m.currentItem.id
+    m.metaTask.control = "STOP"
+    m.metaTask.control = "RUN"
+end sub
+
 sub OnItemSelected()
     itemJson = m.homeScreen.itemSelected
     if itemJson = invalid or itemJson = "" then
         return
     end if
     m.homeScreen.itemSelected = ""
+    m.detailFromSearch = false
     if m.detailScreen = invalid then
         m.detailScreen = createObject("roSGNode", "DetailScreen")
         m.detailScreen.observeField("playRequested", "OnPlayRequested")
@@ -446,6 +539,15 @@ function onKeyEvent(key as string, press as boolean) as boolean
         if name = "DetailScreen" and m.homeScreen <> invalid then
             ' back invalida qualquer fetch de streams em voo (orphaned-task guard)
             m.playGeneration = m.playGeneration + 1
+            ' back do Detail volta à ORIGEM: busca (M4) ou home
+            if m.detailFromSearch and m.searchScreen <> invalid then
+                ShowScreen(m.searchScreen)
+            else
+                ShowScreen(m.homeScreen)
+            end if
+            return true
+        end if
+        if name = "SearchScreen" and m.homeScreen <> invalid then
             ShowScreen(m.homeScreen)
             return true
         end if

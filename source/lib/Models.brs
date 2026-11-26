@@ -17,7 +17,13 @@ function ParseManifest(manifest as object) as object
                 if cat.doesExist("name") and cat.name <> invalid then
                     name = cat.name
                 end if
-                out.catalogs.push({ type: cat.type, id: cat.id, name: name })
+                entry = { type: cat.type, id: cat.id, name: name }
+                ' M4: extras seguem com o catálogo (HasSearchExtra — busca path-form);
+                ' ausente/fora de forma → campo não existe (aditivo, consumidores M1–M3 intatos)
+                if cat.doesExist("extra") and type(cat.extra) = "roArray" then
+                    entry.extra = cat.extra
+                end if
+                out.catalogs.push(entry)
             end if
         end for
     end if

@@ -11,6 +11,8 @@ sub init()
     m.errorLabel = m.top.findNode("errorLabel")
     m.rowList.observeField("rowItemFocused", "OnRowFocused")
     m.rowList.observeField("rowItemSelected", "OnRowItemSelected")
+    m.searchButton = m.top.findNode("searchButton")
+    m.searchButton.observeField("buttonSelected", "OnSearchPressed")
     m.top.observeField("initialRowsJson", "OnInitialRows")
     m.rowTask = createObject("roSGNode", "CatalogTask")
     m.rowTask.observeField("success", "OnRowLoaded")
@@ -172,4 +174,10 @@ end sub
 sub OnErrorSet()
     m.errorLabel.text = m.top.error
     m.spinner.visible = false
+end sub
+
+' M4: botão Buscar → toggle searchRequested (mecânica AuthScreen); o MainScene
+' consome e RESETA o toggle — re-busca/abertura repetida dispara de novo (lição M2 wave-3)
+sub OnSearchPressed()
+    m.top.searchRequested = not m.top.searchRequested
 end sub
