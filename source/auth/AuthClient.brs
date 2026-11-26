@@ -12,6 +12,17 @@ function AuthBearerHeaders(anonKey as string, accessToken as string) as object
     return headers
 end function
 
+function AuthFetchUserId(anonKey as string, accessToken as string) as string
+    resp = HttpGetJson(getBackendUrl() + "/auth/v1/user", AuthBearerHeaders(anonKey, accessToken))
+    if not resp.ok or resp.json = invalid then
+        return ""
+    end if
+    if resp.json.doesExist("id") and resp.json.id <> invalid then
+        return resp.json.id
+    end if
+    return ""
+end function
+
 function ResolveAnonKey(backendUrl as string) as string
     ' cache por backend — trocar backend invalida (spec §3.2)
     if SessionRead("anon_key_backend") = backendUrl then
