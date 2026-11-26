@@ -47,8 +47,23 @@ sub ShowAuth()
 end sub
 
 sub ShowProfiles(profilesJson as string)
-    ' Task 10 cria ProfileScreen aqui
+    if m.profileScreen = invalid then
+        m.profileScreen = createObject("roSGNode", "ProfileScreen")
+        m.profileScreen.observeField("profileSelected", "OnProfileSelected")
+    end if
+    m.profileScreen.profilesJson = profilesJson
+    ShowScreen(m.profileScreen)
     m.bootSpinner.visible = false
+end sub
+
+sub OnProfileSelected()
+    profileId = m.profileScreen.profileSelected
+    m.profileScreen.profileSelected = 0
+    if profileId <= 0 then
+        return
+    end if
+    SessionSaveActiveProfileId(profileId)
+    ShowHome(profileId)
 end sub
 
 sub ShowHome(profileId as integer)
