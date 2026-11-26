@@ -40,6 +40,8 @@ jobs:
           NUVIO_EMAIL=${{ secrets.NUVIO_EMAIL }}
           NUVIO_PASSWORD=${{ secrets.NUVIO_PASSWORD }}
           AIOSTREAMS_MANIFEST_URL=${{ secrets.AIOSTREAMS_MANIFEST_URL }}
+          NUVIO_SUB_EMAIL=${{ secrets.NUVIO_SUB_EMAIL }}
+          NUVIO_SUB_PASSWORD=${{ secrets.NUVIO_SUB_PASSWORD }}
           EOF
-      - name: Run contract suite (01–12)
+      - name: Run contract suite (01–13)
         run: bash contracts/run-contracts.sh
