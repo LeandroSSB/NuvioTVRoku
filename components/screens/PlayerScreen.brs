@@ -27,6 +27,9 @@ sub OnStreamSet()
         m.top.playFailed = true
         return
     end if
+    ' limpa tracks do item anterior — StartPlay sempre roda StartSubsTask em seguida
+    m.subTracks = []
+    m.subTrackName = ""
     content = createObject("roSGNode", "ContentNode")
     content.url = stream.url
     content.streamFormat = stream.format

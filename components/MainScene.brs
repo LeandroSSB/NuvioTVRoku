@@ -15,7 +15,6 @@ sub init()
     m.streams = []
     m.streamIndex = 0
     m.currentItem = invalid
-    m.subsReady = false
     m.subsJson = ""
     m.streamTask = invalid
     m.subsTask = invalid
@@ -23,6 +22,8 @@ sub init()
     m.streamsScreen = invalid
     m.currentPlayItemId = ""
     m.pendingStreamsMode = ""
+    m.playGeneration = 0
+    m.streamTaskGeneration = 0
     m.bootSpinner = m.top.findNode("bootSpinner")
     if SessionGetRefreshToken() <> "" then
         StartSessionTask("boot")
@@ -195,11 +196,15 @@ sub StartSubsTask()
     end if
     m.subsTask.subType = m.currentItem.type
     m.subsTask.subId = m.currentPlayItemId
+    m.pendingSubsId = m.currentPlayItemId
     m.subsTask.control = "STOP"
     m.subsTask.control = "RUN"
 end sub
 
 sub OnSubsLoaded()
+    if m.pendingSubsId <> m.currentPlayItemId then
+        return
+    end if
     if m.playerScreen <> invalid and m.subsTask.success then
         m.subsJson = m.subsTask.subsJson
         m.playerScreen.subsJson = m.subsJson
@@ -236,16 +241,20 @@ end sub
 ' ---------- streams (M2) ----------
 
 sub OnPlayRequested()
-    m.pendingStreamsMode = ""
+    if not m.detailScreen.playRequested then return
     itemId = m.detailScreen.playItemId
+    m.detailScreen.playRequested = false
     if itemId = "" then
         return
     end if
+    m.pendingStreamsMode = ""
     StartStreamTask(m.currentItem.type, itemId)
 end sub
 
 ' picker só p/ filme (stream de série sem episódio não é contrato congelado — T-judgment 1)
 sub OnStreamsRequested()
+    if not m.detailScreen.streamsRequested then return
+    m.detailScreen.streamsRequested = false
     m.pendingStreamsMode = "pick"
     StartStreamTask(m.currentItem.type, m.currentItem.id)
 end sub
@@ -261,11 +270,14 @@ sub StartStreamTask(stype as string, sid as string)
     end if
     m.streamTask.streamType = stype
     m.streamTask.streamId = sid
+    m.playGeneration = m.playGeneration + 1
+    m.streamTaskGeneration = m.playGeneration
     m.streamTask.control = "STOP"
     m.streamTask.control = "RUN"
 end sub
 
 sub OnStreamsLoaded()
+    if m.streamTaskGeneration <> m.playGeneration then return
     ' guard antes do spinner: StreamTask zera success no início do execute — o fire
     ' espúrio (false) não deve apagar o spinner nem seguir adiante.
     if not m.streamTask.success then
@@ -282,12 +294,21 @@ sub OnStreamsLoaded()
 end sub
 
 sub OnStreamsError()
-    ' idem: execute zera error="" no início — fire espúrio sai sem tocar em nada.
-    if m.streamTask.error = "" then
+    if m.streamTask.error = "" then return
+    if m.streamTaskGeneration <> m.playGeneration then return
+    m.bootSpinner.visible = false
+    err = m.streamTask.error
+    if err = "" then
+        err = "Falha ao carregar as streams."
+    end if
+    if err = "session_expired" then
+        SessionClearSession()
+        StartSessionTask("boot")
         return
     end if
-    m.bootSpinner.visible = false
-    m.homeScreen.error = m.streamTask.error
+    ' Detail não tem campo de erro — o caminho de erro volta pra Home com mensagem visível
+    ShowScreen(m.homeScreen)
+    m.homeScreen.error = TranslateAuthError(err)
 end sub
 
 sub ShowStreams()
@@ -312,6 +333,8 @@ function onKeyEvent(key as string, press as boolean) as boolean
             return true
         end if
         if name = "DetailScreen" and m.homeScreen <> invalid then
+            ' back invalida qualquer fetch de streams em voo (orphaned-task guard)
+            m.playGeneration = m.playGeneration + 1
             ShowScreen(m.homeScreen)
             return true
         end if

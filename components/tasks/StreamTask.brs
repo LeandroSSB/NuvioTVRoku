@@ -25,6 +25,9 @@ sub execute()
     resp = HttpGetJson(url, AuthBearerHeaders(anonKey, accessToken))
     if not resp.ok or resp.json = invalid or type(resp.json) <> "roArray" then
         m.top.error = resp.error
+        if m.top.error = "" then
+            m.top.error = "addons_invalid_response"
+        end if
         return
     end if
     for each addon in BuildAddonList(resp.json)
