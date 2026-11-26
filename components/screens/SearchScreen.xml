@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="SearchScreen" extends="Group" initialFocus="searchKeyboard">
+    <script type="text/brightscript" uri="SearchScreen.brs" />
+    <interface>
+        <field id="query" type="string" value="" />
+        <field id="querySubmitted" type="bool" value="false" />
+        <field id="resultsJson" type="string" onChange="OnResultsJson" />
+        <field id="error" type="string" onChange="OnErrorSet" />
+        <field id="itemSelected" type="string" />
+    </interface>
+    <children>
+        <Label id="header" translation="[60, 40]" text="Buscar" font="font:LargeSystemFont" />
+        <MiniKeyboard id="searchKeyboard" translation="[60, 120]" />
+        <Button id="searchButton" translation="[60, 620]" text="Buscar" />
+        <MarkupGrid id="results" translation="[500, 120]" itemComponentName="PosterItem" itemSize="[[240, 405]]" numColumns="3" itemSpacing="[20, 30]" />
+        <Label id="emptyLabel" translation="[500, 140]" text="Sem resultados" visible="false" font="font:SmallSystemFont" />
+        <Label id="errorLabel" translation="[500, 620]" width="700" height="56" font="font:SmallSystemFont" color="0xE57373" wrap="true" />
+    </children>
+</component>

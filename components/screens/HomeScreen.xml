@@ -9,9 +9,11 @@
         <field id="addonsJson" type="string" />
         <field id="error" type="string" onChange="OnErrorSet" />
         <field id="itemSelected" type="string" />
+        <field id="searchRequested" type="bool" value="false" />
     </interface>
     <children>
         <Label id="header" translation="[60, 50]" text="Nuvio TV" font="font:LargeSystemFont" />
+        <Button id="searchButton" translation="[1020, 44]" text="Buscar" />
         <BusySpinner id="spinner" translation="[600, 340]" visible="true" spin="true" />
         <RowList id="rows" translation="[60, 110]" numRows="2" rowItemSize="[[240, 405]]" itemComponentName="PosterItem" itemSpacing="[30, 25]" rowFocusAnimationStyle="fixedFocusWrap" />
         <Label id="errorLabel" translation="[60, 650]" width="1160" font="font:SmallSystemFont" color="0xE57373" />
