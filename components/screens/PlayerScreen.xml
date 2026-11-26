@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="PlayerScreen" extends="Group" initialFocus="player">
+    <script type="text/brightscript" uri="pkg:/source/lib/Session.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Resume.brs" />
+    <script type="text/brightscript" uri="PlayerScreen.brs" />
+    <interface>
+        <field id="streamJson" type="string" onChange="OnStreamSet" />
+        <field id="subsJson" type="string" onChange="OnSubsSet" />
+        <field id="itemId" type="string" value="" />
+        <field id="resumeSeconds" type="int" value="0" />
+        <field id="playFinished" type="bool" value="false" />
+        <field id="playFailed" type="bool" value="false" />
+        <field id="exitRequested" type="bool" value="false" />
+    </interface>
+    <children>
+        <Video id="player" width="1280" height="720" enableTrickPlay="true" />
+    </children>
+</component>
