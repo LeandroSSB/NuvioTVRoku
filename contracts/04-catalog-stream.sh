@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 # Contrato 04: protocolo Stremio no AIOStreams — manifest → catalog → stream.
 # Manifest URL vem da tabela addons (fonte de verdade do app); creds é fallback.
 # Prefere catálogo de movies (stream de série exige id ttXXX:S:E, escopo do M1).

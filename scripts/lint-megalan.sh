@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 # Lint do NuvioTVRoku — roda em Docker node:22-alpine NA MEGALAN.
 # Regra da máquina: npm/build nunca no WSL; host megalan não tem node → Docker.
 # node_modules persiste no volume do container via cache npm nomeado.

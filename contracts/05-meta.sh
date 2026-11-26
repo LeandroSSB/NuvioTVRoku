@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 # Contrato 05: meta de séries com temporadas corretas (tmdb-meta self-host).
 # GoT (tt0944947): multi-season garantido — valida o caminho episode groups/default.
 source "$(dirname "$0")/lib.sh"

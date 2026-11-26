@@ -1,3 +1,4 @@
+' NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 ' Config — backend do NuvioTVRoku (spec §3.2).
 ' Default: backend oficial. Override self-host: setBackendUrl() (Settings, M4) —
 ' persistido em roRegistrySection "nuvio". Trocar backend exige re-login.

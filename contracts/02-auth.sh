@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 # Contrato 02: login GoTrue (password grant) + validação do token em /auth/v1/user.
 source "$(dirname "$0")/lib.sh"
 
