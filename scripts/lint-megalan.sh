@@ -12,6 +12,7 @@ REMOTE_DIR="\$HOME/$REPO_NAME"
 # caminho relativo em destino remoto resolve a partir do home do usuário.
 rsync -a --delete \
   --exclude node_modules --exclude .git --exclude .roku --exclude dist \
+  --exclude contracts/creds \
   ./ "megalan:$REPO_NAME/"
 
 ssh megalan "docker run --rm \

@@ -6,10 +6,12 @@
   "license": "GPL-3.0",
   "scripts": {
     "lint": "bslint",
-    "lint:remote": "bash scripts/lint-megalan.sh"
+    "lint:remote": "bash scripts/lint-megalan.sh",
+    "stage": "node scripts/stage.cjs",
+    "stage:remote": "bash scripts/stage-megalan.sh"
   },
   "devDependencies": {
-    "@rokucommunity/bslint": "latest",
-    "roku-deploy": "latest"
+    "@rokucommunity/bslint": "0.8.47",
+    "roku-deploy": "3.18.4"
   }
 }
