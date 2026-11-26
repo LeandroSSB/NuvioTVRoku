@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="EpisodeItem" extends="Group">
+    <script type="text/brightscript" uri="EpisodeItem.brs" />
+    <interface>
+        <field id="itemContent" type="node" onChange="OnContentSet" />
+        <field id="focusPercent" type="float" onChange="OnFocusChanged" />
+    </interface>
+    <children>
+        <Rectangle id="frame" width="300" height="170" color="0x181C23FF" />
+        <Poster id="thumb" width="300" height="170" loadDisplayMode="scaleToFill" />
+        <Label id="code" translation="[0, 178]" width="300" font="font:SmallestSystemFont" color="0x00F8F8" />
+        <Label id="name" translation="[0, 202]" width="300" height="44" font="font:SmallestSystemFont" wrap="true" />
+    </children>
+</component>

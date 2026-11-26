@@ -104,7 +104,41 @@ sub OnHomeError()
 end sub
 
 sub OnItemSelected()
-    ' handler real entra na Task 12 — stub evita callback ausente neste commit
+    itemJson = m.homeScreen.itemSelected
+    if itemJson = invalid or itemJson = "" then
+        return
+    end if
+    if m.detailScreen = invalid then
+        m.detailScreen = createObject("roSGNode", "DetailScreen")
+    end if
+    m.detailScreen.itemJson = itemJson
+    m.detailScreen.addonsJson = m.homeScreen.addonsJson
+    m.detailScreen.metaJson = ""
+    ShowScreen(m.detailScreen)
+    m.bootSpinner.visible = true
+    if m.metaTask = invalid then
+        m.metaTask = createObject("roSGNode", "MetaTask")
+        m.metaTask.observeField("success", "OnMetaLoaded")
+        m.metaTask.observeField("error", "OnMetaError")
+    end if
+    item = parseJson(itemJson)
+    m.metaTask.addonsJson = m.homeScreen.addonsJson
+    m.metaTask.metaType = item.type
+    m.metaTask.metaId = item.id
+    m.metaTask.control = "STOP"
+    m.metaTask.control = "RUN"
+end sub
+
+sub OnMetaLoaded()
+    m.bootSpinner.visible = false
+    if m.metaTask.success then
+        m.detailScreen.metaJson = m.metaTask.metaJson
+    end if
+end sub
+
+sub OnMetaError()
+    m.bootSpinner.visible = false
+    ' sem meta: detail fica só com os dados do row item (spec §4 — não bloquear)
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
