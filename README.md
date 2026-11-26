@@ -6,8 +6,9 @@
 
 </div>
 
-> **Status:** M2 (streams + player + subtitles + local resume) on top of M1
-> (auth + profiles + home + detail). Port of
+> **Status:** M3 (watch-progress sync + continue watching) on top of M1–M2
+> (auth + profiles + home + detail; streams + player + subtitles + local
+> resume). Port of
 > [NuvioMedia/NuvioTV](https://github.com/NuvioMedia/NuvioTV) to Roku
 > BrightScript/SceneGraph. Code-complete without a device: contracts + lint +
 > packaging are green; UI/player validation happens when a Roku is available.
@@ -17,7 +18,7 @@
 - [x] M0 — foundation: repo, skeleton, lint toolchain, data contracts
 - [x] M1 — auth + profiles + home + detail (blind-validated; device checks pending)
 - [x] M2 — streams + player + subtitles + local resume (blind-validated; E2E pending device)
-- [ ] M3 — watch-progress sync
+- [x] M3 — watch-progress sync (PostgREST; server-preferred resume; continue-watching row)
 - [ ] M4 — search, collections, addons screen, settings
 - [ ] M5 — upstream PR to NuvioMedia
 
@@ -32,7 +33,7 @@ covers the platform-applicable surface only:
 - Dolby Vision: relies on Roku native DV decoding (no DV7 RPU conversion)
 - Subtitle formats: Roku player supports SRT/VTT sidecar; ASS falls back to VTT conversion
 
-## App flow (M1–M2)
+## App flow (M1–M3)
 
 Boot → restore session (refresh token grant) or login (e-mail/password, GoTrue)
 → profile selection (PostgREST `profiles`, RLS-scoped) → Home rows (catalogs of
@@ -42,11 +43,14 @@ addons declare a `meta` resource but return none). Detail "Assistir" plays the
 first compatible stream (AVI filtered; error → next stream); "Escolher stream"
 opens the picker; subtitles: the profile's OpenSubtitles-class addons feed
 sidecar SRT (PT-BR first); resume: position saved to Registry every 15s and on
-pause/back, cleared on finish.
+pause/back, cleared on finish. Playback pushes position to PostgREST
+`watch_progress` (15s timer, pause, back, finish); Home prepends a "Continuar
+assistindo" row enriched from the meta addons; resume prefers the server
+position (local Registry as offline fallback).
 
 Registry keys (`nuvio` section): `backend_url`, `anon_key`, `anon_key_backend`,
-`refresh_token`, `active_profile_id`, `res_<itemId>`. Access tokens are never
-persisted (2 h expiry; refreshed on use).
+`refresh_token`, `active_profile_id`, `user_id`, `res_<itemId>`. Access tokens
+are never persisted (2 h expiry; refreshed on use).
 
 Deliberate M1–M2 cuts (tracked for M4+): profile PIN, profile create/edit/delete,
 logout UI, "remember last profile" toggle, avatar images (color tile + initial
@@ -73,7 +77,7 @@ manifest            Roku channel manifest
 assets/images/      placeholder icon/splash art (HD/SD)
 source/main.brs     entry point
 source/config/      backend config (Registry + well-known resolve)
-components/         SceneGraph screens (MainScene; M1–M2 add home/detail/player/streams/...)
+components/         SceneGraph screens + tasks (MainScene; M1–M3 add home/detail/player/streams/progress/...)
 contracts/          curl suite that freezes the JSON contracts the app consumes
 scripts/            lint-megalan.sh (bslint in Docker on a remote host)
 package.json        toolchain (bslint, roku-deploy)
@@ -100,7 +104,9 @@ v3) · `07` profiles + per-profile addons (RLS) · `08` refresh grant · `09`
 per-profile addon walk: manifests → catalogs → meta fallback · `10` streams for
 movie and episode `tt:s:e` (shape frozen, AVI present, ≥1 compatible
 mkv/mp4/mov/m4v/hls) · `11` subtitles via OpenSubtitles-class addon found by
-walking profiles (shape + `lang` + SRT format probe).
+walking profiles (shape + `lang` + SRT format probe) · `12` `watch_progress`
+read + write round-trip (ms/epoch shape, `last_watched.desc`, upsert requiring
+`user_id` + `video_id`; fake row always cleaned up).
 
 ## Distribution (Roku)
 
