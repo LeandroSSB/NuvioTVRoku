@@ -1,6 +1,8 @@
 ' NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
-' DetailScreen — filme: poster/backdrop/descrição + botão stub (player = M2).
-' Série: temporadas (LabelList) + episódios (MarkupGrid) via meta.videos (contratos 05/09).
+' DetailScreen — filme: poster/backdrop/descrição + "Assistir"/"Escolher stream"
+' (emitem playRequested/streamsRequested com playItemId; MainScene orquestra o resto).
+' Série: temporadas (LabelList) + episódios (MarkupGrid) via meta.videos (contratos 05/09);
+' episódio escolhido → itemId tt:s:e (addFields guardou season/episode no SelectSeason).
 ' Info do row item aparece imediatamente; meta enriquece quando MetaTask responde.
 
 sub init()
@@ -10,12 +12,15 @@ sub init()
     m.metaInfo = m.top.findNode("metaInfo")
     m.description = m.top.findNode("description")
     m.playButton = m.top.findNode("play")
+    m.pickButton = m.top.findNode("pick")
     m.seasons = m.top.findNode("seasons")
     m.episodes = m.top.findNode("episodes")
     m.item = invalid
     m.grouped = invalid
-    m.stubDialog = invalid
+    m.currentEpisode = invalid
+    m.episodeId = ""
     m.playButton.observeField("buttonSelected", "OnPlaySelected")
+    m.pickButton.observeField("buttonSelected", "OnPickSelected")
     m.seasons.observeField("itemFocused", "OnSeasonFocused")
     m.seasons.observeField("itemSelected", "OnSeasonSelected")
     m.episodes.observeField("itemSelected", "OnEpisodeSelected")
@@ -29,6 +34,8 @@ sub OnItemSet()
         return
     end if
     m.item = item
+    m.episodeId = ""
+    m.currentEpisode = invalid
     uri = item.background
     if uri = "" then
         uri = item.poster
@@ -41,6 +48,7 @@ sub OnItemSet()
     m.seasons.visible = false
     m.episodes.visible = false
     m.playButton.visible = (item.type = "movie")
+    m.pickButton.visible = (item.type = "movie")
     if item.type = "movie" then
         m.playButton.setFocus(true)
     end if
@@ -69,6 +77,7 @@ sub OnMetaSet()
             m.seasons.visible = true
             m.episodes.visible = true
             m.playButton.visible = false
+            m.pickButton.visible = false
             SelectSeason(0)
         end if
     end if
@@ -116,27 +125,31 @@ sub OnSeasonSelected()
 end sub
 
 sub OnEpisodeSelected()
-    ShowStubDialog()
+    ' MarkupGrid.itemSelected é INT (índice flat) e o content é flat (raiz→itens)
+    idx = m.episodes.itemSelected
+    if idx = invalid or idx < 0 then
+        return
+    end if
+    ep = m.episodes.content.getChild(idx)
+    if ep = invalid then
+        return
+    end if
+    m.currentEpisode = ep
+    ' itemId do episódio: addFields guardou season/episode (SelectSeason);
+    ' o id do item pai é a SÉRIE (ttXXX) — o play real precisa do tt:s:e.
+    m.episodeId = m.item.id + ":" + ep.getField("season").toStr() + ":" + ep.getField("episode").toStr()
+    OnPlaySelected()
 end sub
 
 sub OnPlaySelected()
-    ShowStubDialog()
+    if m.episodeId <> "" then
+        m.top.playItemId = m.episodeId
+    else if m.item <> invalid then
+        m.top.playItemId = m.item.id
+    end if
+    m.top.playRequested = not m.top.playRequested
 end sub
 
-sub ShowStubDialog()
-    if m.stubDialog <> invalid then
-        return
-    end if
-    m.stubDialog = createObject("roSGNode", "Dialog")
-    m.stubDialog.title = "Player no M2"
-    m.stubDialog.message = "Streams, legendas e player chegam no próximo milestone."
-    m.stubDialog.observeField("wasClosed", "OnStubClosed")
-    m.top.appendChild(m.stubDialog)
-end sub
-
-sub OnStubClosed()
-    if m.stubDialog <> invalid then
-        m.top.removeChild(m.stubDialog)
-        m.stubDialog = invalid
-    end if
+sub OnPickSelected()
+    m.top.streamsRequested = not m.top.streamsRequested
 end sub

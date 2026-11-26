@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="StreamsScreen" extends="Group" initialFocus="streamList">
+    <script type="text/brightscript" uri="StreamsScreen.brs" />
+    <interface>
+        <field id="streamsJson" type="string" onChange="OnStreamsSet" />
+        <field id="streamPicked" type="int" value="-1" />
+    </interface>
+    <children>
+        <Label id="headline" translation="[60, 60]" text="Streams" font="font:LargeSystemFont" />
+        <LabelList id="streamList" translation="[60, 140]" itemSize="[1100, 52]" />
+    </children>
+</component>
