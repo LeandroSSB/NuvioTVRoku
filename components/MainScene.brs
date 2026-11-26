@@ -1,3 +1,4 @@
+' NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 ' MainScene — tela raiz do esqueleto M0 (versão + backend configurado).
 sub init()
     title = m.top.findNode("title")

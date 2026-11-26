@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 # Contrato 01: descoberta de backend — GET /.well-known/nuvio.
 # Congela o schema: service, backend_url, publishable_key (JWT), capabilities.email_password_auth.
 source "$(dirname "$0")/lib.sh"

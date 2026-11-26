@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 # lib.sh — helpers da suíte de contratos do NuvioTVRoku.
 # Contratos = curl/jq leves (podem rodar no WSL). Segredos ficam em creds/creds.env (gitignored).
 set -euo pipefail

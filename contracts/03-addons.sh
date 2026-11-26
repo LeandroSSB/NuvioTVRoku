@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 # Contrato 03: tabela `addons` (PostgREST) — lista de addons instalados na conta.
 # É daqui que o app tira as URLs dos addons (inclui OpenSubtitles v3 público).
 source "$(dirname "$0")/lib.sh"

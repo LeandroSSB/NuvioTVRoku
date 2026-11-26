@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 # Roda todos os contratos em ordem; exit != 0 se qualquer um falhar.
 cd "$(dirname "$0")"
 RC=0

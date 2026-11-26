@@ -1,3 +1,4 @@
+' NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 sub main()
     screen = createObject("roSGScreen")
     m.port = createObject("roMessagePort")
