@@ -20,6 +20,8 @@ sub init()
     m.libraryMode = ""
     m.libraryIds = { }
     m.detailFromLibrary = false
+    m.addonsScreen = invalid
+    m.addonsRows = []
     m.streams = []
     m.streamIndex = 0
     m.currentItem = invalid
@@ -95,6 +97,7 @@ sub ShowHome(profileId as integer)
         m.homeScreen.observeField("itemSelected", "OnItemSelected")
         m.homeScreen.observeField("searchRequested", "OnHomeSearchRequested")
         m.homeScreen.observeField("libraryRequested", "OnHomeLibraryRequested")
+        m.homeScreen.observeField("addonsRequested", "OnHomeAddonsRequested")
     end if
     ShowScreen(m.homeScreen)
     m.bootSpinner.visible = true
@@ -266,6 +269,9 @@ sub OnLibraryTaskSuccess()
     m.bootSpinner.visible = false
     if m.libraryMode = "pull" then
         RebuildLibraryIds(m.libraryTask.itemsJson)
+        ' ride-along T3-review M1: o Detail aberto acompanha a membership
+        ' reconstruída — o botão nunca discorda do mapa reconstruído aqui
+        UpdateDetailLibraryButton()
         if m.libraryScreen <> invalid then
             m.libraryScreen.itemsJson = m.libraryTask.itemsJson
         end if
@@ -375,6 +381,112 @@ sub OnLibraryItemSelected()
     m.metaTask.metaId = m.currentItem.id
     m.metaTask.control = "STOP"
     m.metaTask.control = "RUN"
+end sub
+
+' ---------- addons (M4) ----------
+
+' Home → AddonsScreen (create-once; toggle addonsRequested consumido+resetado,
+' mesma mecânica do Buscar/Biblioteca). Todo ShowAddons dispara um pull —
+' user-triggered, sem auto-refresh (padrão da Biblioteca).
+sub OnHomeAddonsRequested()
+    if not m.homeScreen.addonsRequested then return
+    m.homeScreen.addonsRequested = false
+    ShowAddons()
+end sub
+
+sub ShowAddons()
+    if m.addonsScreen = invalid then
+        m.addonsScreen = createObject("roSGNode", "AddonsScreen")
+        m.addonsScreen.observeField("toggleRequested", "OnAddonToggleRequested")
+    end if
+    ShowScreen(m.addonsScreen)
+    m.bootSpinner.visible = true
+    StartAddonsPull()
+end sub
+
+' O node do ProgressTask é COMPARTILHADO com pull/cw/push (M3) — cada dispatch
+' RE-observa success/error (observeField substitui o handler anterior; os
+' dispatchers do M3 também re-observam a cada dispatch) e classifica o ciclo em
+' m.progressMode ("addons"/"toggle") — sem isso um success cairia no handler de
+' outro ciclo (lição M3 T4: push no node do pull/cw).
+sub StartAddonsPull()
+    if m.progressTask = invalid then
+        m.progressTask = createObject("roSGNode", "ProgressTask")
+    end if
+    m.progressTask.observeField("success", "OnAddonsTaskSuccess")
+    m.progressTask.observeField("error", "OnAddonsTaskError")
+    m.progressTask.mode = "addons"
+    m.progressTask.control = "STOP"
+    m.progressTask.control = "RUN"
+    m.progressMode = "addons"
+end sub
+
+' Toggle do AddonsScreen: m.addonsRows é o cache das rows CRUS do último pull —
+' a row inteira vai ao task (id + enabled CORRENTE decidem o flip no POST
+' on_conflict=id). Índice consumido + resetado (-1): re-toggle na MESMA row
+' precisa de mudança de valor no field int para disparar de novo.
+sub OnAddonToggleRequested()
+    idx = m.addonsScreen.toggleRequested
+    m.addonsScreen.toggleRequested = -1
+    if idx < 0 or idx >= m.addonsRows.count() then
+        return
+    end if
+    row = m.addonsRows[idx]
+    if row = invalid or not row.doesExist("id") then
+        return
+    end if
+    StartAddonToggle(FormatJson(row))
+end sub
+
+sub StartAddonToggle(rowJson as string)
+    if m.progressTask = invalid then
+        m.progressTask = createObject("roSGNode", "ProgressTask")
+    end if
+    m.progressTask.observeField("success", "OnAddonsTaskSuccess")
+    m.progressTask.observeField("error", "OnAddonsTaskError")
+    m.progressTask.mode = "toggle"
+    m.progressTask.rowJson = rowJson
+    m.progressTask.control = "STOP"
+    m.progressTask.control = "RUN"
+    m.progressMode = "toggle"
+end sub
+
+' Um handler para pull/toggle (padrão LibraryTask, split por m.progressMode).
+' pull: guarda as rows cruas (m.addonsRows alimenta o próximo toggle) + injeta
+' na tela; toggle: re-puxa — a lista volta a ficar certa SEM depender de
+' reabrir a tela (self-correcting, igual ao add/remove da Biblioteca).
+sub OnAddonsTaskSuccess()
+    if not m.progressTask.success then
+        return
+    end if
+    m.bootSpinner.visible = false
+    if m.progressMode = "addons" then
+        rows = parseJson(m.progressTask.rowsJson)
+        if rows <> invalid and type(rows) = "roArray" then
+            m.addonsRows = rows
+        end if
+        if m.addonsScreen <> invalid then
+            m.addonsScreen.addonsJson = m.progressTask.rowsJson
+        end if
+    else if m.progressMode = "toggle" then
+        StartAddonsPull()
+    end if
+end sub
+
+' pull falha COM feedback na tela; toggle falha SILENCIOSO (padrão M3/M4):
+' enabled não mudou na UI — o usuário pode repetir o toggle.
+sub OnAddonsTaskError()
+    m.bootSpinner.visible = false
+    if m.progressTask.error = "" then return
+    err = m.progressTask.error
+    if err = "session_expired" then
+        SessionClearSession()
+        StartSessionTask("boot")
+        return
+    end if
+    if m.progressMode = "addons" and m.addonsScreen <> invalid then
+        m.addonsScreen.error = err
+    end if
 end sub
 
 sub OnItemSelected()
@@ -525,11 +637,14 @@ end sub
 sub StartProgressPush(itemId as string, contentType as string, posSeconds as integer, durSeconds as integer)
     if m.progressTask = invalid then
         m.progressTask = createObject("roSGNode", "ProgressTask")
-        m.progressTask.observeField("error", "OnProgressPushError")
-        ' success também observado: o MESMO node pode ter sido criado pelo pull/cw
-        ' da home (e vice-versa o push reusa o node do pull — observers são os dois)
-        m.progressTask.observeField("success", "OnProgressTaskSuccess")
     end if
+    m.progressTask.observeField("error", "OnProgressPushError")
+    ' success também observado: o MESMO node pode ter sido criado pelo pull/cw
+    ' da home (e vice-versa o push reusa o node do pull — observers são os dois)
+    m.progressTask.observeField("success", "OnProgressTaskSuccess")
+    ' re-observado A CADA dispatch: observeField substitui o handler anterior e o
+    ' node agora é compartilhado com addons/toggle (M4) — sem isso um push após
+    ' abrir Addons responderia no OnAddonsTask* (observeField só na criação)
     m.progressTask.mode = "push"
     m.progressTask.progressRowJson = FormatJson(ProgressToServerRow(itemId, contentType, posSeconds, durSeconds))
     ' classifica o success do push como no-op no OnProgressTaskSuccess — o node é
@@ -550,9 +665,11 @@ end sub
 sub StartProgressPull()
     if m.progressTask = invalid then
         m.progressTask = createObject("roSGNode", "ProgressTask")
-        m.progressTask.observeField("success", "OnProgressTaskSuccess")
-        m.progressTask.observeField("error", "OnProgressPushError")
     end if
+    ' re-observado A CADA dispatch (node compartilhado com addons/toggle do M4 —
+    ' o handler do último dispatch dono do ciclo precisa vencer)
+    m.progressTask.observeField("success", "OnProgressTaskSuccess")
+    m.progressTask.observeField("error", "OnProgressPushError")
     m.progressTask.mode = "pull"
     m.progressTask.control = "STOP"
     m.progressTask.control = "RUN"
@@ -721,6 +838,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
             return true
         end if
         if name = "LibraryScreen" and m.homeScreen <> invalid then
+            ShowScreen(m.homeScreen)
+            return true
+        end if
+        if name = "AddonsScreen" and m.homeScreen <> invalid then
             ShowScreen(m.homeScreen)
             return true
         end if
