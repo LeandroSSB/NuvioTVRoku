@@ -4,6 +4,10 @@
 ' fallback — mecânica do MetaTask) → row "Continuar assistindo" da home.
 ' push: POST merge-duplicates COM user_id do Registry
 ' (sem user_id → "no_user_id" SEM HTTP). Só roda com sessão viva.
+' M4: addons = GET rows crus da tabela addons do perfil (id,name,url,enabled,
+' profile_id) → rowsJson; toggle = POST ?on_conflict=id merge-duplicates com a
+' row do pull + enabled flipado (roUrlTransfer não tem PATCH; o braço INSERT do
+' upsert tenta as colunas NOT NULL — name/url VÃO no body) + user_id do Registry.
 
 sub init()
     HttpInit()
@@ -26,6 +30,10 @@ sub execute()
         RunPush(anonKey, accessToken)
     else if m.top.mode = "cw" then
         RunContinueWatching(anonKey, accessToken)
+    else if m.top.mode = "addons" then
+        RunAddons(anonKey, accessToken)
+    else if m.top.mode = "toggle" then
+        RunToggle(anonKey, accessToken)
     else
         RunPull(anonKey, accessToken)
     end if
@@ -60,6 +68,64 @@ sub RunPush(anonKey as string, accessToken as string)
     ' on_conflict congela o upsert na unique key (user_id,profile_id,progress_key) —
     ' sem ele o merge-duplicates do PostgREST aplica a chave default (id da tabela)
     tx.setUrl(getBackendUrl() + "/rest/v1/watch_progress?on_conflict=user_id,profile_id,progress_key")
+    tx.addHeader("apikey", anonKey)
+    tx.addHeader("Authorization", "Bearer " + accessToken)
+    tx.addHeader("Content-Type", "application/json")
+    tx.addHeader("Prefer", "resolution=merge-duplicates")
+    tx.setMessagePort(m.httpPort)
+    tx.asyncPostFromString(body)
+    resp = HttpWaitResponse(tx)
+    if not resp.ok then
+        m.top.error = resp.error
+        return
+    end if
+    m.top.success = true
+end sub
+
+' M4: rows crus da tabela addons do perfil — select mínimo DELIBERADO: name/url
+' voltam no body do toggle (merge-duplicates monta o INSERT antes de resolver o
+' conflito; colunas NOT NULL sem default precisam existir no payload — forma do
+' INSERT provado no contrato 13). Vazio NÃO é erro: sucesso com rowsJson "[]".
+sub RunAddons(anonKey as string, accessToken as string)
+    url = getBackendUrl() + "/rest/v1/addons?select=id,name,url,enabled,profile_id&profile_id=eq." + SessionRead("active_profile_id") + "&order=sort_order.asc"
+    resp = HttpGetJson(url, AuthBearerHeaders(anonKey, accessToken))
+    if not resp.ok or resp.json = invalid or type(resp.json) <> "roArray" then
+        m.top.error = resp.error
+        return
+    end if
+    m.top.rowsJson = FormatJson(resp.json)
+    m.top.success = true
+end sub
+
+' toggle de addon SEM PATCH (roUrlTransfer não expõe método custom): a row crua
+' do pull (rowJson — enabled CORRENTE vem dela, decidido pelo MainScene) volta
+' como POST ?on_conflict=id merge-duplicates com enabled flipado. user_id do
+' Registry + profile_id vão no body (WITH CHECK do RLS vale no braço INSERT do
+' upsert — forma igual ao push/contrato 13). Colunas ausentes do body NÃO são
+' tocadas no UPDATE do conflito (sort_order/created_at ficam intactos).
+sub RunToggle(anonKey as string, accessToken as string)
+    userId = SessionRead("user_id")
+    if userId = "" then
+        m.top.error = "no_user_id"
+        return
+    end if
+    profileIdStr = SessionRead("active_profile_id")
+    if profileIdStr = "" then
+        m.top.error = "no_profile_id"
+        return
+    end if
+    row = parseJson(m.top.rowJson)
+    if row = invalid or not row.doesExist("id") or not row.doesExist("enabled") or row.enabled = invalid then
+        m.top.error = "invalid_row"
+        return
+    end if
+    row.enabled = not row.enabled
+    row.user_id = userId
+    row.profile_id = profileIdStr.toInt()
+    body = FormatJson(row)
+    tx = HttpNewTransfer()
+    ' on_conflict congela o upsert na PK (id) — explícito igual ao push do M3
+    tx.setUrl(getBackendUrl() + "/rest/v1/addons?on_conflict=id")
     tx.addHeader("apikey", anonKey)
     tx.addHeader("Authorization", "Bearer " + accessToken)
     tx.addHeader("Content-Type", "application/json")

@@ -12,6 +12,7 @@
     <interface>
         <field id="mode" type="string" value="pull" />
         <field id="progressRowJson" type="string" value="" />
+        <field id="rowJson" type="string" value="" />
         <field id="rowsJson" type="string" value="" />
         <field id="success" type="bool" value="false" />
         <field id="error" type="string" value="" />

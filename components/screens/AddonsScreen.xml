@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="AddonsScreen" extends="Group" initialFocus="addonsList">
+    <script type="text/brightscript" uri="AddonsScreen.brs" />
+    <interface>
+        <field id="addonsJson" type="string" onChange="OnAddonsJson" />
+        <field id="error" type="string" onChange="OnErrorSet" />
+        <field id="toggleRequested" type="int" value="-1" />
+    </interface>
+    <children>
+        <Label id="header" translation="[60, 50]" text="Addons" font="font:LargeSystemFont" />
+        <LabelList id="addonsList" translation="[60, 140]" itemSize="[1100, 52]" />
+        <Label id="emptyLabel" translation="[60, 160]" text="Nenhum addon" visible="false" font="font:SmallSystemFont" />
+        <Label id="errorLabel" translation="[60, 650]" width="1160" font="font:SmallSystemFont" color="0xE57373" />
+    </children>
+</component>
