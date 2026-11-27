@@ -10,8 +10,8 @@ set -euo pipefail
 BASE="http://$ROKU_IP:8060"
 
 case "${1:-}" in
-  keys)   for k in ${2:?sequência de keys}; do curl -sS -d '' "$BASE/keypress/$k"; sleep 0.6; done ;;
-  launch) curl -sS -d '' "$BASE/launch/dev" ;;
+  keys)   for k in ${2:?sequência de keys}; do curl -sfS -d '' "$BASE/keypress/$k"; sleep 0.6; done ;;
+  launch) curl -sfS -d '' "$BASE/launch/dev" ;;
   shot)   # Utilities→Screenshot é página web (multipart) — helper captura via POST:
           # requer o canal assinado instalado; salva PNG local.
           NAME=${2:?nome do arquivo sem extensão}
