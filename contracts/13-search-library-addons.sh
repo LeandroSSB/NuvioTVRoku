@@ -30,6 +30,12 @@ assert_not_empty "login da conta main" "$MAIN_TOKEN"
 SH=(-H "apikey: $ANON" -H "Authorization: Bearer $MAIN_TOKEN")
 SU=(-H "apikey: $ANON" -H "Authorization: Bearer $SUB_TOKEN")
 
+# Dados fake ÚNICOS por run: o CI roda run de push E de PR no mesmo SHA em
+# paralelo — nomes/ids fixos colidem entre runs concorrentes na mesma conta sub.
+TAG="$(date +%s%N)"
+M4NAME="M4TEST_$TAG"
+LID="ttTEST0000_$TAG"
+
 # RLS cross-account: sub NÃO vê dados do main
 assert_eq "RLS: sub vê 0 rows de progress do main" "0" \
     "$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/watch_progress?select=progress_key&limit=5" "${SU[@]}" | jq 'if type=="array" then length else -1 end')"
@@ -60,12 +66,12 @@ assert_eq "library row tem meta snapshot (name/poster)" "true" \
 assert_eq "added_at é epoch ms" "true" "$(echo "$LIB" | jq -r '[.[].added_at | type == "number"] | all')"
 
 # ADDONS CRUD (sub account — INSERT → PATCH → DELETE)
-# cleanup defensivo: remove M4TEST de runs interrompidos (o assert final exige 0 rows)
-curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/addons?name=eq.M4TEST" "${SU[@]}" -o /dev/null || true
+# cleanup defensivo: remove M4TEST* de runs interrompidos (o assert final exige 0 rows)
+curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/addons?name=like.M4TEST*" "${SU[@]}" -o /dev/null || true
 INS="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/addons" "${SU[@]}" \
     -H "Content-Type: application/json" -H "Prefer: return=representation" \
-    -d "{\"name\":\"M4TEST\",\"url\":\"https://example.com/manifest.json\",\"enabled\":true,\"sort_order\":99,\"profile_id\":1,\"user_id\":\"$SUB_USER\"}")"
-assert_contains "INSERT addon na sub" '"M4TEST"' "$INS"
+    -d "{\"name\":\"$M4NAME\",\"url\":\"https://example.com/manifest.json\",\"enabled\":true,\"sort_order\":99,\"profile_id\":1,\"user_id\":\"$SUB_USER\"}")"
+assert_contains "INSERT addon na sub" "\"name\":\"$M4NAME\"" "$INS"
 ADDON_ID="$(json_get "$INS" 'if type=="array" then .[0].id else empty end')"
 assert_not_empty "addon id retornado" "$ADDON_ID"
 # UPSERT-BY-ID (o mecanismo REAL do toggle do app — roUrlTransfer não tem PATCH).
@@ -73,8 +79,16 @@ assert_not_empty "addon id retornado" "$ADDON_ID"
 # a row inteira (name/url/sort_order).
 TOGGLE="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/addons?on_conflict=id" "${SU[@]}" \
     -H "Content-Type: application/json" -H "Prefer: return=representation,resolution=merge-duplicates" \
-    -d "{\"id\":\"$ADDON_ID\",\"enabled\":false,\"name\":\"M4TEST\",\"url\":\"https://example.com/manifest.json\",\"sort_order\":99,\"profile_id\":1,\"user_id\":\"$SUB_USER\"}")"
+    -d "{\"id\":\"$ADDON_ID\",\"enabled\":false,\"name\":\"$M4NAME\",\"url\":\"https://example.com/manifest.json\",\"sort_order\":99,\"profile_id\":1,\"user_id\":\"$SUB_USER\"}")"
 assert_contains "upsert-by-id faz toggle (mecanismo real do app)" '"enabled":false' "$(echo "$TOGGLE" | jq -c 'if type=="array" then .[0] else . end | {enabled: .enabled}')"
+# Upsert-by-id REPETIDO: idempotente — nada de duplicar (mesma row, enabled volta a true)
+TOGGLE2_CODE="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/addons?on_conflict=id" "${SU[@]}" \
+    -H "Content-Type: application/json" -H "Prefer: return=representation,resolution=merge-duplicates" \
+    -d "{\"id\":\"$ADDON_ID\",\"enabled\":true,\"name\":\"$M4NAME\",\"url\":\"https://example.com/manifest.json\",\"sort_order\":99,\"profile_id\":1,\"user_id\":\"$SUB_USER\"}" \
+    -o /dev/null -w "%{http_code}")"
+assert_eq "upsert-by-id repetido → 200" "200" "$TOGGLE2_CODE"
+assert_eq "upsert-by-id repetido não duplica (1 row)" "1" \
+    "$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/addons?id=eq.$ADDON_ID" "${SU[@]}" | jq 'length')"
 PATCH_CODE="$(curl -sS -m 10 -X PATCH "$NUVIO_BACKEND_URL/rest/v1/addons?id=eq.$ADDON_ID" "${SU[@]}" \
     -H "Content-Type: application/json" -d '{"enabled":false}' -o /dev/null -w "%{http_code}")"
 assert_eq "PATCH enabled=false → 204" "204" "$PATCH_CODE"
@@ -83,13 +97,13 @@ assert_eq "PATCH persistiu" "false" \
 DEL_CODE="$(curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/addons?id=eq.$ADDON_ID" "${SU[@]}" -o /dev/null -w "%{http_code}")"
 assert_eq "DELETE addon fake → 204" "204" "$DEL_CODE"
 assert_eq "cleanup: 0 rows M4TEST" "0" \
-    "$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/addons?name=eq.M4TEST" "${SU[@]}" | jq 'length')"
+    "$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/addons?name=eq.$M4NAME" "${SU[@]}" | jq 'length')"
 
 # LIBRARY RPCs (os mecanismos REAIS de add/remove do app)
 # cleanup defensivo: remove rows fake de runs anteriores via DELETE de TABELA
 # (o RPC delete é no-op — ver abaixo; o curl do contrato tem DELETE, o app não)
-curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=eq.ttTEST0000&profile_id=eq.1" "${SU[@]}" -o /dev/null || true
-SNAP='{"content_id":"ttTEST0000","content_type":"movie","name":"M4 Test Movie","poster":"","background":"","description":"","genres":"","imdb_rating":"","release_info":"","poster_shape":"poster","addon_base_url":""}'
+curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=like.ttTEST0000*&profile_id=eq.1" "${SU[@]}" -o /dev/null || true
+SNAP="$(printf '{"content_id":"%s","content_type":"movie","name":"M4 Test Movie","poster":"","background":"","description":"","genres":"","imdb_rating":"","release_info":"","poster_shape":"poster","addon_base_url":""}' "$LID")"
 PUSH="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/rpc/sync_push_library_items" "${SU[@]}" \
     -H "Content-Type: application/json" \
     -d "{\"p_items\":[$SNAP],\"p_profile_id\":1,\"p_origin_client_id\":\"nuviotvroku\"}" \
@@ -97,16 +111,16 @@ PUSH="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/rpc/sync_push_library
 assert_eq "sync_push_library_items → 204 (add do app)" "204" "$PUSH"
 DEL="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/rpc/sync_delete_library_items" "${SU[@]}" \
     -H "Content-Type: application/json" \
-    -d '{"p_keys":["ttTEST0000"],"p_profile_id":1}' \
+    -d "{\"p_keys\":[\"$LID\"],\"p_profile_id\":1}" \
     -o /dev/null -w "%{http_code}")"
 assert_eq "sync_delete_library_items autentica (shape p_keys sob validação device)" "204" "$DEL"
-LEFT="$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=eq.ttTEST0000&profile_id=eq.1" "${SU[@]}" | jq 'length')"
+LEFT="$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=eq.$LID&profile_id=eq.1" "${SU[@]}" | jq 'length')"
 # OBSERVADO 26/11: o RPC delete autentica (204) mas é NO-OP — a row permanece (1).
 # Congela o comportamento REAL (investigação device-phase; ver README "Deliberate cuts").
 assert_eq "estado pós-RPCs (delete no-op documentado — fix device-phase)" "1" "$LEFT"
 # cleanup INCONDICIONAL: nada vaza — o row fake sai via DELETE de tabela
-curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=eq.ttTEST0000&profile_id=eq.1" "${SU[@]}" -o /dev/null || true
+curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=eq.$LID&profile_id=eq.1" "${SU[@]}" -o /dev/null || true
 assert_eq "cleanup: 0 rows ttTEST0000 (no-op do RPC não vaza)" "0" \
-    "$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=eq.ttTEST0000&profile_id=eq.1" "${SU[@]}" | jq 'length')"
+    "$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=eq.$LID&profile_id=eq.1" "${SU[@]}" | jq 'length')"
 
 finish_contract "13-search-library-addons"
