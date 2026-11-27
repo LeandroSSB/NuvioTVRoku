@@ -3,8 +3,9 @@
 # Contrato 12: watch_progress (PostgREST, RLS por usuário) — o sync M3.
 # Congela: leitura (shape ms/epoch, ordem last_watched.desc, filtro profile_id) e
 # ESCRITA (POST Prefer merge-duplicates exigindo user_id + video_id — INSERT sem
-# eles viola RLS/not-null, provado 26/11). Round-trip de escrita usa row FAKE
-# ttTEST0000 com cleanup obrigatório — nunca tocar nas rows reais da conta.
+# eles viola RLS/not-null, provado 26/11). Round-trip de escrita usa rows FAKE
+# taggeadas por run (ttTEST0000_<ns>) com cleanup obrigatório — nunca tocar nas
+# rows reais da conta.
 source "$(dirname "$0")/lib.sh"
 
 ANON="$(json_get "$(wellknown "$NUVIO_BACKEND_URL")" .publishable_key)"
@@ -15,6 +16,19 @@ TOKEN="$(json_get "$LOGIN_BODY" .access_token)"
 USER_ID="$(json_get "$LOGIN_BODY" .user.id)"
 assert_not_empty "login para progress" "$TOKEN"
 assert_not_empty "user.id no response de login" "$USER_ID"
+
+# Keys fake ÚNICAS por run: o CI dispara run de push E de PR no mesmo SHA em
+# paralelo (grupos de concurrency distintos) — dados fixos colidem (o cleanup de
+# um run apaga a row do outro; falha 27/11 no PR #5).
+# FATO DE BACKEND (provado 27/11): o server RECOMPUTA progress_key = content_id
+# (movie) / content_id_sXeY (series) e IGNORA a key enviada pelo cliente — o tag
+# vai em content_id/video_id, não na key. Órfãos de runs mortos (SIGKILL não roda
+# trap) também saem aqui — ttTEST* nunca é progress_key real.
+curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=like.ttTEST*" \
+    -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" -o /dev/null || true
+TAG="$(date +%s%N)"
+K1="ttTEST0000_$TAG"
+K2="ttTEST0001_$TAG"
 
 ROWS="$(curl -sS -m 15 \
     "$NUVIO_BACKEND_URL/rest/v1/watch_progress?select=content_id,content_type,season,episode,position,duration,progress_key,video_id,last_watched,profile_id&profile_id=eq.1&order=last_watched.desc&limit=50" \
@@ -31,14 +45,14 @@ echo "  rows do perfil: $(echo "$ROWS" | jq 'length'); mais recente: $(echo "$RO
 FAKE_POST="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/watch_progress?on_conflict=user_id,profile_id,progress_key" \
     -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
     -H "Prefer: return=representation,resolution=merge-duplicates" \
-    -d "{\"content_id\":\"ttTEST0000\",\"content_type\":\"movie\",\"position\":5000,\"duration\":100000,\"progress_key\":\"ttTEST0000\",\"video_id\":\"ttTEST0000\",\"last_watched\":1700000000000,\"profile_id\":1,\"user_id\":\"$USER_ID\"}")"
-assert_contains "POST upsert cria row fake" '"ttTEST0000"' "$FAKE_POST"
+    -d "{\"content_id\":\"$K1\",\"content_type\":\"movie\",\"position\":5000,\"duration\":100000,\"progress_key\":\"$K1\",\"video_id\":\"$K1\",\"last_watched\":1700000000000,\"profile_id\":1,\"user_id\":\"$USER_ID\"}")"
+assert_contains "POST upsert cria row fake" "\"content_id\":\"$K1\"" "$FAKE_POST"
 
 # Safety net p/ set -e abortar no meio do round-trip: apaga as rows fake no EXIT.
 # '|| true' evita que o trap mascare o exit code original; o DELETE explícito +
 # assert zero-remaining no fim continuam sendo o caminho principal.
 cleanup_fakes() {
-    curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=in.(ttTEST0000,ttTEST0001)" \
+    curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=in.($K1,$K2)" \
         -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" -o /dev/null || true
 }
 trap cleanup_fakes EXIT
@@ -46,25 +60,25 @@ trap cleanup_fakes EXIT
 FAKE_REPOST="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/watch_progress?on_conflict=user_id,profile_id,progress_key" \
     -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
     -H "Prefer: return=representation,resolution=merge-duplicates" \
-    -d "{\"content_id\":\"ttTEST0000\",\"content_type\":\"movie\",\"position\":7000,\"duration\":100000,\"progress_key\":\"ttTEST0000\",\"video_id\":\"ttTEST0000\",\"last_watched\":1700000100000,\"profile_id\":1,\"user_id\":\"$USER_ID\"}")"
-assert_contains "re-POST faz upsert (sem duplicar)" '"ttTEST0000"' "$FAKE_REPOST"
+    -d "{\"content_id\":\"$K1\",\"content_type\":\"movie\",\"position\":7000,\"duration\":100000,\"progress_key\":\"$K1\",\"video_id\":\"$K1\",\"last_watched\":1700000100000,\"profile_id\":1,\"user_id\":\"$USER_ID\"}")"
+assert_contains "re-POST faz upsert (sem duplicar)" "\"content_id\":\"$K1\"" "$FAKE_REPOST"
 assert_eq "upsert atualizou position (1 row)" "1" "$(curl -sS -m 10 \
-    "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=eq.ttTEST0000" \
+    "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=eq.$K1" \
     -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" | jq 'length')"
 assert_eq "position atualizada para 7000ms" "7000" "$(curl -sS -m 10 \
-    "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=eq.ttTEST0000" \
+    "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=eq.$K1" \
     -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" | jq -r '.[0].position')"
 
 # INSERT SEM user_id → viola RLS (comportamento que o app evita)
 BAD="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/watch_progress?on_conflict=user_id,profile_id,progress_key" \
     -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-    -d '{"content_id":"ttTEST0001","content_type":"movie","position":5000,"duration":100000,"progress_key":"ttTEST0001","video_id":"ttTEST0001","last_watched":1700000000000,"profile_id":1}')"
+    -d '{"content_id":"'"$K2"'","content_type":"movie","position":5000,"duration":100000,"progress_key":"'"$K2"'","video_id":"'"$K2"'","last_watched":1700000000000,"profile_id":1}')"
 assert_contains "INSERT sem user_id viola RLS" 'row-level security' "$BAD"
 
 # CLEANUP obrigatório (ambas as keys fake — BAD probe não pode deixar órfão se RLS relaxar)
-curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=in.(ttTEST0000,ttTEST0001)" \
+curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=in.($K1,$K2)" \
     -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" -o /dev/null
-LEFT="$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=in.(ttTEST0000,ttTEST0001)" \
+LEFT="$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/watch_progress?progress_key=in.($K1,$K2)" \
     -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" | jq 'length')"
 assert_eq "cleanup removeu a row fake" "0" "$LEFT"
 
