@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="SettingsScreen" extends="Group" initialFocus="settingsList">
+    <script type="text/brightscript" uri="SettingsScreen.brs" />
+    <interface>
+        <field id="backendUrl" type="string" value="" onChange="OnBackendUrlSet" />
+        <field id="rememberEnabled" type="bool" value="false" onChange="OnRememberChange" />
+        <field id="editMode" type="bool" value="false" onChange="OnEditModeSet" />
+        <field id="testSuccess" type="bool" value="false" onChange="OnTestSuccessSet" />
+        <field id="error" type="string" onChange="OnErrorSet" />
+        <field id="itemSelected" type="int" value="-1" />
+        <field id="rememberToggled" type="bool" value="false" />
+        <field id="logoutRequested" type="bool" value="false" />
+        <field id="backendSubmitted" type="bool" value="false" />
+    </interface>
+    <children>
+        <Label id="header" translation="[60, 50]" text="Configurações" font="font:LargeSystemFont" />
+        <Group id="listGroup">
+            <LabelList id="settingsList" translation="[60, 140]" itemSize="[1100, 52]" />
+        </Group>
+        <Group id="editGroup" visible="false">
+            <Label id="editHint" translation="[60, 120]" text="Nova URL do servidor (http/https)" font="font:SmallSystemFont" />
+            <MiniKeyboard id="urlKeyboard" translation="[60, 160]" />
+            <Button id="saveButton" translation="[60, 540]" text="Salvar" />
+        </Group>
+        <Label id="statusLabel" translation="[60, 650]" width="1160" font="font:SmallSystemFont" color="0xE57373" />
+    </children>
+</component>

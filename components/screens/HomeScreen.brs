@@ -17,6 +17,8 @@ sub init()
     m.libraryButton.observeField("buttonSelected", "OnLibraryPressed")
     m.addonsButton = m.top.findNode("addonsButton")
     m.addonsButton.observeField("buttonSelected", "OnAddonsPressed")
+    m.configButton = m.top.findNode("configButton")
+    m.configButton.observeField("buttonSelected", "OnConfigPressed")
     m.top.observeField("initialRowsJson", "OnInitialRows")
     m.rowTask = createObject("roSGNode", "CatalogTask")
     m.rowTask.observeField("success", "OnRowLoaded")
@@ -194,4 +196,9 @@ end sub
 ' M4: botão Addons → toggle addonsRequested, mesma mecânica do Buscar/Biblioteca
 sub OnAddonsPressed()
     m.top.addonsRequested = not m.top.addonsRequested
+end sub
+
+' M4: botão Config → toggle configRequested, mesma mecânica das demais entradas
+sub OnConfigPressed()
+    m.top.configRequested = not m.top.configRequested
 end sub
