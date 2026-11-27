@@ -135,7 +135,7 @@ RLS cross-account isolation.
 2. Build the package zip (any machine with Docker; nothing installs locally):
 
    ```bash
-   bash scripts/stage-megalan.sh   # → dist/nuviotvroku-<version>.zip
+   bash scripts/stage-megalan.sh   # → dist/roku-deploy.zip
    ```
 
 3. Open `http://<ROKU_IP>/plugin_dev`, upload the zip, **Install** — the channel
