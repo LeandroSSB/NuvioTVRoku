@@ -16,7 +16,7 @@ case "${1:-}" in
           # requer o canal assinado instalado; salva PNG local.
           NAME=${2:?nome do arquivo sem extensão}
           curl -sS -f "http://$ROKU_IP/plugin_inspect/screenshot" -o "$NAME.png" \
-            || { echo "FAIL: screenshot indisponível — canal empacotado c/ dev key? (Task B6)"; exit 1; }
+            || { echo "FAIL: screenshot indisponível — canal empacotado c/ dev key? (Task B7)"; exit 1; }
           file "$NAME.png" ;;
   *) echo "uso: $0 {keys|launch|shot} [arg]"; exit 2 ;;
 esac
