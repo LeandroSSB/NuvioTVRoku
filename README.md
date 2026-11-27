@@ -89,7 +89,8 @@ Actions (repo secrets; forks skip the contracts job).
 
 ```
 manifest            Roku channel manifest
-assets/images/      placeholder icon/splash art (HD/SD)
+assets/images/      channel icon/splash art (SD/HD/FHD, generated from assets/brand/)
+assets/brand/       official NuvioMedia logo mark + wordmark (art sources)
 source/main.brs     entry point
 source/config/      backend config (Registry + well-known resolve)
 components/         SceneGraph screens + tasks (MainScene; M1–M4 add home/detail/player/streams/progress/search/library/addons/settings/...)
