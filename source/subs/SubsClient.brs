@@ -40,8 +40,16 @@ function FetchSubtitleTracks(anonKey as string, accessToken as string, itemType 
         return result
     end if
     for each addon in BuildAddonList(resp.json)
-        mResp = HttpGetJson(addon.manifestUrl, { })
-        manifest = ParseManifest(mResp.json)
+        ' manifest via cache de sessão (Cache.brs) — só cacheia 2xx + json:
+        ' falha transitória não fixa manifest vazio pela sessão
+        manifest = CacheGetManifest(addon.manifestUrl)
+        if manifest = invalid then
+            mResp = HttpGetJson(addon.manifestUrl, { })
+            manifest = ParseManifest(mResp.json)
+            if mResp.ok and mResp.json <> invalid then
+                CacheSetManifest(addon.manifestUrl, manifest)
+            end if
+        end if
         if manifest.types <> invalid and (SupportsType(manifest.types, itemType) or manifest.types.count() = 0) then
             if manifest.hasSubtitles = true then
                 baseUrl = AddonBaseUrl(addon.manifestUrl)
