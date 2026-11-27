@@ -10,9 +10,11 @@
         <field id="error" type="string" onChange="OnErrorSet" />
         <field id="itemSelected" type="string" />
         <field id="searchRequested" type="bool" value="false" />
+        <field id="libraryRequested" type="bool" value="false" />
     </interface>
     <children>
         <Label id="header" translation="[60, 50]" text="Nuvio TV" font="font:LargeSystemFont" />
+        <Button id="libraryButton" translation="[750, 44]" text="Biblioteca" />
         <Button id="searchButton" translation="[1020, 44]" text="Buscar" />
         <BusySpinner id="spinner" translation="[600, 340]" visible="true" spin="true" />
         <RowList id="rows" translation="[60, 110]" numRows="2" rowItemSize="[[240, 405]]" itemComponentName="PosterItem" itemSpacing="[30, 25]" rowFocusAnimationStyle="fixedFocusWrap" />

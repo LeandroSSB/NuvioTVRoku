@@ -15,6 +15,11 @@ sub init()
     m.searchScreen = invalid
     m.searchTask = invalid
     m.detailFromSearch = false
+    m.libraryScreen = invalid
+    m.libraryTask = invalid
+    m.libraryMode = ""
+    m.libraryIds = { }
+    m.detailFromLibrary = false
     m.streams = []
     m.streamIndex = 0
     m.currentItem = invalid
@@ -89,6 +94,7 @@ sub ShowHome(profileId as integer)
         m.homeScreen = createObject("roSGNode", "HomeScreen")
         m.homeScreen.observeField("itemSelected", "OnItemSelected")
         m.homeScreen.observeField("searchRequested", "OnHomeSearchRequested")
+        m.homeScreen.observeField("libraryRequested", "OnHomeLibraryRequested")
     end if
     ShowScreen(m.homeScreen)
     m.bootSpinner.visible = true
@@ -194,10 +200,12 @@ sub OnSearchItemSelected()
         m.detailScreen = createObject("roSGNode", "DetailScreen")
         m.detailScreen.observeField("playRequested", "OnPlayRequested")
         m.detailScreen.observeField("streamsRequested", "OnStreamsRequested")
+        m.detailScreen.observeField("libraryRequested", "OnDetailLibraryRequested")
     end if
     m.detailScreen.itemJson = itemJson
     m.detailScreen.metaJson = ""
     m.detailFromSearch = true
+    m.detailFromLibrary = false
     ShowScreen(m.detailScreen)
     m.bootSpinner.visible = true
     if m.metaTask = invalid then
@@ -206,6 +214,162 @@ sub OnSearchItemSelected()
         m.metaTask.observeField("error", "OnMetaError")
     end if
     m.currentItem = parseJson(itemJson)
+    m.detailScreen.inLibrary = m.libraryIds.doesExist(m.currentItem.id)
+    m.metaTask.addonsJson = m.homeScreen.addonsJson
+    m.metaTask.metaType = m.currentItem.type
+    m.metaTask.metaId = m.currentItem.id
+    m.metaTask.control = "STOP"
+    m.metaTask.control = "RUN"
+end sub
+
+' ---------- biblioteca (M4) ----------
+
+' Home → LibraryScreen (create-once; toggle libraryRequested consumido+resetado,
+' mesma mecânica do Buscar). Todo ShowLibrary dispara um pull — pulls de library
+' são user-triggered (sem auto-refresh/geração, diferente do progresso M3).
+sub OnHomeLibraryRequested()
+    if not m.homeScreen.libraryRequested then return
+    m.homeScreen.libraryRequested = false
+    ShowLibrary()
+end sub
+
+sub ShowLibrary()
+    if m.libraryScreen = invalid then
+        m.libraryScreen = createObject("roSGNode", "LibraryScreen")
+        m.libraryScreen.observeField("itemSelected", "OnLibraryItemSelected")
+    end if
+    ShowScreen(m.libraryScreen)
+    m.bootSpinner.visible = true
+    StartLibraryPull()
+end sub
+
+sub StartLibraryPull()
+    if m.libraryTask = invalid then
+        m.libraryTask = createObject("roSGNode", "LibraryTask")
+        m.libraryTask.observeField("success", "OnLibraryTaskSuccess")
+        m.libraryTask.observeField("error", "OnLibraryTaskError")
+    end if
+    m.libraryTask.mode = "pull"
+    m.libraryTask.control = "STOP"
+    m.libraryTask.control = "RUN"
+    m.libraryMode = "pull"
+end sub
+
+' Um node para pull/add/remove (padrão ProgressTask M3): o split fica em m.libraryMode.
+' pull: reconstrói m.libraryIds (membership por content_id) + injeta o grid;
+' add/remove: atualiza a membership LOCAL, reflete o texto do botão no Detail e
+' re-puxa (o grid volta a ficar certo sem depender de reabrir a Biblioteca).
+sub OnLibraryTaskSuccess()
+    if not m.libraryTask.success then
+        return
+    end if
+    m.bootSpinner.visible = false
+    if m.libraryMode = "pull" then
+        RebuildLibraryIds(m.libraryTask.itemsJson)
+        if m.libraryScreen <> invalid then
+            m.libraryScreen.itemsJson = m.libraryTask.itemsJson
+        end if
+    else if m.libraryMode = "add" or m.libraryMode = "remove" then
+        row = parseJson(m.libraryTask.rowJson)
+        if row <> invalid and row.doesExist("content_id") then
+            if m.libraryMode = "add" then
+                m.libraryIds[row.content_id] = true
+            else
+                m.libraryIds.delete(row.content_id)
+            end if
+        end if
+        UpdateDetailLibraryButton()
+        StartLibraryPull()
+    end if
+end sub
+
+sub OnLibraryTaskError()
+    m.bootSpinner.visible = false
+    if m.libraryTask.error = "" then return
+    err = m.libraryTask.error
+    if err = "session_expired" then
+        SessionClearSession()
+        StartSessionTask("boot")
+        return
+    end if
+    ' pull falha COM feedback na tela; add/remove falham silenciosos (padrão M3):
+    ' membership/botão não mudaram — o usuário pode repetir o toggle.
+    if m.libraryMode = "pull" and m.libraryScreen <> invalid then
+        m.libraryScreen.error = err
+    end if
+end sub
+
+sub RebuildLibraryIds(itemsJson as string)
+    m.libraryIds = { }
+    items = parseJson(itemsJson)
+    if items = invalid or type(items) <> "roArray" then
+        return
+    end if
+    for each item in items
+        if item <> invalid and item.doesExist("id") then
+            m.libraryIds[item.id] = true
+        end if
+    end for
+end sub
+
+sub UpdateDetailLibraryButton()
+    if m.detailScreen = invalid or m.currentItem = invalid then
+        return
+    end if
+    m.detailScreen.inLibrary = m.libraryIds.doesExist(m.currentItem.id)
+end sub
+
+' Toggle no Detail → BuildLibraryRow com o item corrente → LibraryTask add/remove.
+' A membership vem do ÚLTIMO pull (m.libraryIds) — antes da 1ª visita à Biblioteca o
+' botão mostra "Adicionar" mesmo para item já salvo (limitação aceita do M4).
+sub OnDetailLibraryRequested()
+    if not m.detailScreen.libraryRequested then return
+    m.detailScreen.libraryRequested = false
+    if m.currentItem = invalid or m.currentItem.id = "" then return
+    mode = "add"
+    if m.libraryIds.doesExist(m.currentItem.id) then
+        mode = "remove"
+    end if
+    if m.libraryTask = invalid then
+        m.libraryTask = createObject("roSGNode", "LibraryTask")
+        m.libraryTask.observeField("success", "OnLibraryTaskSuccess")
+        m.libraryTask.observeField("error", "OnLibraryTaskError")
+    end if
+    m.libraryTask.mode = mode
+    m.libraryTask.rowJson = FormatJson(BuildLibraryRow(m.currentItem, SessionGetActiveProfileId()))
+    m.libraryTask.control = "STOP"
+    m.libraryTask.control = "RUN"
+    m.libraryMode = mode
+end sub
+
+' Seleção na grade da biblioteca → MESMA transição de Detail das demais origens
+' (linhas duplicadas de propósito — repo não fatora); m.detailFromLibrary guarda a
+' origem para o back do Detail voltar à Biblioteca
+sub OnLibraryItemSelected()
+    itemJson = m.libraryScreen.itemSelected
+    if itemJson = invalid or itemJson = "" then
+        return
+    end if
+    m.libraryScreen.itemSelected = ""
+    if m.detailScreen = invalid then
+        m.detailScreen = createObject("roSGNode", "DetailScreen")
+        m.detailScreen.observeField("playRequested", "OnPlayRequested")
+        m.detailScreen.observeField("streamsRequested", "OnStreamsRequested")
+        m.detailScreen.observeField("libraryRequested", "OnDetailLibraryRequested")
+    end if
+    m.detailScreen.itemJson = itemJson
+    m.detailScreen.metaJson = ""
+    m.detailFromSearch = false
+    m.detailFromLibrary = true
+    ShowScreen(m.detailScreen)
+    m.bootSpinner.visible = true
+    if m.metaTask = invalid then
+        m.metaTask = createObject("roSGNode", "MetaTask")
+        m.metaTask.observeField("success", "OnMetaLoaded")
+        m.metaTask.observeField("error", "OnMetaError")
+    end if
+    m.currentItem = parseJson(itemJson)
+    m.detailScreen.inLibrary = m.libraryIds.doesExist(m.currentItem.id)
     m.metaTask.addonsJson = m.homeScreen.addonsJson
     m.metaTask.metaType = m.currentItem.type
     m.metaTask.metaId = m.currentItem.id
@@ -220,10 +384,12 @@ sub OnItemSelected()
     end if
     m.homeScreen.itemSelected = ""
     m.detailFromSearch = false
+    m.detailFromLibrary = false
     if m.detailScreen = invalid then
         m.detailScreen = createObject("roSGNode", "DetailScreen")
         m.detailScreen.observeField("playRequested", "OnPlayRequested")
         m.detailScreen.observeField("streamsRequested", "OnStreamsRequested")
+        m.detailScreen.observeField("libraryRequested", "OnDetailLibraryRequested")
     end if
     m.detailScreen.itemJson = itemJson
     m.detailScreen.metaJson = ""
@@ -235,6 +401,7 @@ sub OnItemSelected()
         m.metaTask.observeField("error", "OnMetaError")
     end if
     m.currentItem = parseJson(itemJson)
+    m.detailScreen.inLibrary = m.libraryIds.doesExist(m.currentItem.id)
     m.metaTask.addonsJson = m.homeScreen.addonsJson
     m.metaTask.metaType = m.currentItem.type
     m.metaTask.metaId = m.currentItem.id
@@ -539,15 +706,21 @@ function onKeyEvent(key as string, press as boolean) as boolean
         if name = "DetailScreen" and m.homeScreen <> invalid then
             ' back invalida qualquer fetch de streams em voo (orphaned-task guard)
             m.playGeneration = m.playGeneration + 1
-            ' back do Detail volta à ORIGEM: busca (M4) ou home
+            ' back do Detail volta à ORIGEM: busca, biblioteca (M4) ou home
             if m.detailFromSearch and m.searchScreen <> invalid then
                 ShowScreen(m.searchScreen)
+            else if m.detailFromLibrary and m.libraryScreen <> invalid then
+                ShowScreen(m.libraryScreen)
             else
                 ShowScreen(m.homeScreen)
             end if
             return true
         end if
         if name = "SearchScreen" and m.homeScreen <> invalid then
+            ShowScreen(m.homeScreen)
+            return true
+        end if
+        if name = "LibraryScreen" and m.homeScreen <> invalid then
             ShowScreen(m.homeScreen)
             return true
         end if

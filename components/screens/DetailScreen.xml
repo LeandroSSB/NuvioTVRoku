@@ -8,7 +8,9 @@
         <field id="metaJson" type="string" onChange="OnMetaSet" />
         <field id="playRequested" type="bool" value="false" />
         <field id="streamsRequested" type="bool" value="false" />
+        <field id="libraryRequested" type="bool" value="false" />
         <field id="playItemId" type="string" value="" />
+        <field id="inLibrary" type="bool" value="false" onChange="OnInLibrarySet" />
     </interface>
     <children>
         <Poster id="backdrop" width="1280" height="720" loadDisplayMode="scaleToFill" />
@@ -19,6 +21,7 @@
         <Label id="description" translation="[320, 200]" width="880" height="200" font="font:SmallSystemFont" wrap="true" />
         <Button id="play" translation="[320, 420]" text="Assistir" visible="false" />
         <Button id="pick" translation="[320, 500]" text="Escolher stream" visible="false" />
+        <Button id="library" translation="[320, 580]" text="Adicionar à biblioteca" />
         <LabelList id="seasons" translation="[60, 430]" itemSize="[180, 50]" visible="false" />
         <MarkupGrid id="episodes" translation="[280, 430]" itemComponentName="EpisodeItem" itemSize="[[940, 260]]" numColumns="3" itemSpacing="[20, 30]" visible="false" />
     </children>
