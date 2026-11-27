@@ -4,6 +4,8 @@
 ' Série: temporadas (LabelList) + episódios (MarkupGrid) via meta.videos (contratos 05/09);
 ' episódio escolhido → itemId tt:s:e (addFields guardou season/episode no SelectSeason).
 ' Info do row item aparece imediatamente; meta enriquece quando MetaTask responde.
+' M4: botão Biblioteca (add/remove toggle) em filme E série — texto vem do field
+' inLibrary (membership cacheada no MainScene pelo último pull da LibraryTask).
 
 sub init()
     m.backdrop = m.top.findNode("backdrop")
@@ -13,6 +15,7 @@ sub init()
     m.description = m.top.findNode("description")
     m.playButton = m.top.findNode("play")
     m.pickButton = m.top.findNode("pick")
+    m.libraryButton = m.top.findNode("library")
     m.seasons = m.top.findNode("seasons")
     m.episodes = m.top.findNode("episodes")
     m.item = invalid
@@ -21,6 +24,7 @@ sub init()
     m.episodeId = ""
     m.playButton.observeField("buttonSelected", "OnPlaySelected")
     m.pickButton.observeField("buttonSelected", "OnPickSelected")
+    m.libraryButton.observeField("buttonSelected", "OnLibrarySelected")
     m.seasons.observeField("itemFocused", "OnSeasonFocused")
     m.seasons.observeField("itemSelected", "OnSeasonSelected")
     m.episodes.observeField("itemSelected", "OnEpisodeSelected")
@@ -49,8 +53,14 @@ sub OnItemSet()
     m.episodes.visible = false
     m.playButton.visible = (item.type = "movie")
     m.pickButton.visible = (item.type = "movie")
+    ' M4: o botão Biblioteca serve filme E série — a posição muda porque a série
+    ' ocupa a banda y430+ com seasons/episodes: filme fica abaixo do pick, série
+    ' fica à direita das thumbs de episódio (EpisodeItem tem 300px; célula 940)
     if item.type = "movie" then
+        m.libraryButton.translation = [320, 580]
         m.playButton.setFocus(true)
+    else
+        m.libraryButton.translation = [640, 430]
     end if
 end sub
 
@@ -152,4 +162,18 @@ end sub
 
 sub OnPickSelected()
     m.top.streamsRequested = not m.top.streamsRequested
+end sub
+
+' M4: MainScene sabe a membership pelo último pull da LibraryTask (inLibrary bool in)
+' — o toggle emite e o MainScene consome+reseta (mesma mecânica dos outros botões)
+sub OnInLibrarySet()
+    if m.top.inLibrary then
+        m.libraryButton.text = "Remover da biblioteca"
+    else
+        m.libraryButton.text = "Adicionar à biblioteca"
+    end if
+end sub
+
+sub OnLibrarySelected()
+    m.top.libraryRequested = not m.top.libraryRequested
 end sub

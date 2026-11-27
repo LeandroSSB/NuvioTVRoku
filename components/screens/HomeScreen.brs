@@ -13,6 +13,8 @@ sub init()
     m.rowList.observeField("rowItemSelected", "OnRowItemSelected")
     m.searchButton = m.top.findNode("searchButton")
     m.searchButton.observeField("buttonSelected", "OnSearchPressed")
+    m.libraryButton = m.top.findNode("libraryButton")
+    m.libraryButton.observeField("buttonSelected", "OnLibraryPressed")
     m.top.observeField("initialRowsJson", "OnInitialRows")
     m.rowTask = createObject("roSGNode", "CatalogTask")
     m.rowTask.observeField("success", "OnRowLoaded")
@@ -180,4 +182,9 @@ end sub
 ' consome e RESETA o toggle — re-busca/abertura repetida dispara de novo (lição M2 wave-3)
 sub OnSearchPressed()
     m.top.searchRequested = not m.top.searchRequested
+end sub
+
+' M4: botão Biblioteca → toggle libraryRequested, mesma mecânica do Buscar
+sub OnLibraryPressed()
+    m.top.libraryRequested = not m.top.libraryRequested
 end sub

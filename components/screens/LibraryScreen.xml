@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="LibraryScreen" extends="Group" initialFocus="grid">
+    <script type="text/brightscript" uri="LibraryScreen.brs" />
+    <interface>
+        <field id="itemsJson" type="string" onChange="OnItemsJson" />
+        <field id="error" type="string" onChange="OnErrorSet" />
+        <field id="itemSelected" type="string" />
+    </interface>
+    <children>
+        <Label id="header" translation="[60, 50]" text="Biblioteca" font="font:LargeSystemFont" />
+        <MarkupGrid id="grid" translation="[60, 120]" itemComponentName="PosterItem" itemSize="[[240, 405]]" numColumns="4" itemSpacing="[20, 30]" />
+        <Label id="emptyLabel" translation="[60, 140]" text="Biblioteca vazia" visible="false" font="font:SmallSystemFont" />
+        <Label id="errorLabel" translation="[60, 650]" width="1160" font="font:SmallSystemFont" color="0xE57373" />
+    </children>
+</component>
