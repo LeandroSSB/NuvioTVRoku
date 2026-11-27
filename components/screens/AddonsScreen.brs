@@ -33,6 +33,8 @@ sub OnAddonsJson()
         if row.enabled = true then
             state = "on"
         end if
+        ' guard: row sem name quebraria a concatenação (type mismatch trava o script)
+        if row.name = invalid then return
         node.title = row.name + "  [" + state + "]"
     end for
     m.list.content = content

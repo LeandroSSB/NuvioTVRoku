@@ -1,7 +1,8 @@
 ' NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later
 ' Config — backend do NuvioTVRoku (spec §3.2).
-' Default: backend oficial. Override self-host: setBackendUrl() (Settings, M4) —
-' persistido em roRegistrySection "nuvio". Trocar backend exige re-login.
+' Default: backend oficial. Override self-host: Settings (M4) grava backend_url via
+' SessionWrite no MainScene (só depois de PROBE bem-sucedido — Config nunca escreve).
+' Trocar backend exige re-login.
 
 function getBackendUrl() as string
     reg = createObject("roRegistrySection", "nuvio")
@@ -10,12 +11,6 @@ function getBackendUrl() as string
     end if
     return "https://api.nuvio.tv"
 end function
-
-sub setBackendUrl(url as string)
-    reg = createObject("roRegistrySection", "nuvio")
-    reg.write("backend_url", url)
-    reg.flush()
-end sub
 
 ' Resolve a publishable key (anon Supabase) via /.well-known/nuvio.
 ' Retorna "" em falha. M0: chamada síncrona (esqueleto). M1: mover para task node.

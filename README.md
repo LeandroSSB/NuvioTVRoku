@@ -59,8 +59,8 @@ session (m.global, URL-keyed, no TTL — dies with the process), so a play or
 search does ~1 manifest fetch per addon instead of dozens.
 
 Registry keys (`nuvio` section): `backend_url`, `anon_key`, `anon_key_backend`,
-`refresh_token`, `active_profile_id`, `user_id`, `res_<itemId>`. Access tokens
-are never persisted (2 h expiry; refreshed on use).
+`refresh_token`, `active_profile_id`, `remember_last_profile`, `user_id`,
+`res_<itemId>`. Access tokens are never persisted (2 h expiry; refreshed on use).
 
 Deliberate cuts (tracked for M5+): profile PIN, profile create/edit/delete,
 avatar images (color tile + initial instead), manual subtitle/audio track
@@ -122,7 +122,9 @@ mkv/mp4/mov/m4v/hls) · `11` subtitles via OpenSubtitles-class addon found by
 walking profiles (shape + `lang` + SRT format probe) · `12` `watch_progress`
 read + write round-trip (ms/epoch shape, `last_watched.desc`, upsert requiring
 `user_id` + `video_id`; fake row always cleaned up) · `13` search PATH-form
-extras + `library_items` add/remove + addons CRUD (toggle via upsert-by-id) +
+extras + `library_items` library RPCs (push validated live; the delete RPC
+authenticates but is a documented no-op with the shipped key shape — row always
+cleaned via table DELETE) + addons CRUD incl. the real toggle (upsert-by-id) +
 RLS cross-account isolation.
 
 ## Distribution (Roku)
