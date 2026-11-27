@@ -128,13 +128,28 @@ authenticates but is a documented no-op with the shipped key shape — row alway
 cleaned via table DELETE) + addons CRUD incl. the real toggle (upsert-by-id) +
 RLS cross-account isolation.
 
-## Distribution (Roku)
+## Sideload (developer mode)
 
-Roku has no download links: a channel is installed via (1) developer sideload
-(enable Developer Mode on the device, then `roku-deploy` against the device IP),
-(2) an *unlisted* channel link (`my.roku.com/account/add?channel=...`, free
-Roku Developer account), or (3) the public Channel Store. Community distribution
-target: unlisted channel at M5.
+1. On the Roku home screen press Home 3×, Up 2×, Right, Left, Right, Left, Right
+   (developer settings prompt) → agree → the device reboots into dev mode.
+2. Build the package zip (any machine with Docker; nothing installs locally):
+
+   ```bash
+   bash scripts/stage-megalan.sh   # → dist/nuviotvroku-<version>.zip
+   ```
+
+3. Open `http://<ROKU_IP>/plugin_dev`, upload the zip, **Install** — the channel
+   launches. BrightScript console: `telnet <ROKU_IP> 8085`.
+4. Drive the UI from a terminal (ECP, works for dev channels):
+
+   ```bash
+   curl -d '' http://<ROKU_IP>:8060/keypress/Select   # keys: Up Down Left Right Select Backspace Home Info
+   curl -d '' 'http://<ROKU_IP>:8060/launch/dev'      # launch the dev channel
+   ```
+
+Screenshots require a signed package: `telnet <ROKU_IP> 8080` → `genkey`, then
+the installer's Package tab → package with that key → sideload the `.pkg` →
+installer → Utilities → Screenshot.
 
 ## License
 
