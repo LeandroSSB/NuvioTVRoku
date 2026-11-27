@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- NuvioTVRoku — SPDX-License-Identifier: GPL-3.0-or-later -->
+<component name="SettingsTask" extends="Task">
+    <script type="text/brightscript" uri="pkg:/source/config/Config.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Http.brs" />
+    <script type="text/brightscript" uri="SettingsTask.brs" />
+    <interface>
+        <field id="mode" type="string" value="test" />
+        <field id="success" type="bool" value="false" />
+        <field id="error" type="string" value="" />
+    </interface>
+</component>

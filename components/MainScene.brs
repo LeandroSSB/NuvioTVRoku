@@ -22,6 +22,8 @@ sub init()
     m.detailFromLibrary = false
     m.addonsScreen = invalid
     m.addonsRows = []
+    m.settingsScreen = invalid
+    m.settingsTask = invalid
     m.streams = []
     m.streamIndex = 0
     m.currentItem = invalid
@@ -98,6 +100,7 @@ sub ShowHome(profileId as integer)
         m.homeScreen.observeField("searchRequested", "OnHomeSearchRequested")
         m.homeScreen.observeField("libraryRequested", "OnHomeLibraryRequested")
         m.homeScreen.observeField("addonsRequested", "OnHomeAddonsRequested")
+        m.homeScreen.observeField("configRequested", "OnHomeConfigRequested")
     end if
     ShowScreen(m.homeScreen)
     m.bootSpinner.visible = true
@@ -489,6 +492,166 @@ sub OnAddonsTaskError()
     end if
 end sub
 
+' ---------- configurações (M4) ----------
+
+' Home → SettingsScreen (create-once; toggle configRequested consumido+resetado,
+' mesma mecânica Buscar/Biblioteca/Addons). backendUrl/rememberEnabled re-injetados
+' a cada abertura — create-once + logout/troca de backend mudam o Registry por fora
+' da tela, que é reconstruída com o valor atual (o Registry é a fonte da verdade).
+sub OnHomeConfigRequested()
+    if not m.homeScreen.configRequested then return
+    m.homeScreen.configRequested = false
+    ShowSettings()
+end sub
+
+sub ShowSettings()
+    if m.settingsScreen = invalid then
+        m.settingsScreen = createObject("roSGNode", "SettingsScreen")
+        m.settingsScreen.observeField("itemSelected", "OnSettingsItemSelected")
+        m.settingsScreen.observeField("rememberToggled", "OnRememberToggled")
+        m.settingsScreen.observeField("logoutRequested", "OnLogoutRequested")
+        m.settingsScreen.observeField("backendSubmitted", "OnBackendSubmitted")
+        ' testSuccess/error do resultado do teste são observados no NODE do task
+        ' (StartSettingsTest) — observar os MESMOS ids na tela re-dispararia o
+        ' handler no set que o próprio handler faz (padrão dos demais tasks M1–M4)
+    end if
+    ShowScreen(m.settingsScreen)
+    m.settingsScreen.editMode = false
+    m.settingsScreen.backendUrl = SettingsBackendUrl()
+    m.settingsScreen.rememberEnabled = (SessionRead("remember_last_profile") = "true")
+    m.settingsScreen.error = ""
+end sub
+
+' URL corrente p/ a tela — MainScene não inclui Config.brs; o default espelha o
+' getBackendUrl() (duplicata de propósito — repo não fatora)
+function SettingsBackendUrl() as string
+    url = SessionRead("backend_url")
+    if url = "" then
+        return "https://api.nuvio.tv"
+    end if
+    return url
+end function
+
+' itemSelected (int, reset -1) roteia 0 = sub-modo edição do backend / 1 = testar
+' conexão; 2/3 chegam pelos toggles rememberToggled/logoutRequested (a tela decide
+' por índice — um handler por opção, mecânica AuthScreen de consumir+resetar).
+' editMode DEPOIS do ShowScreen: o OnEditModeSet da tela roda por último e o foco
+' fica no Keyboard, não onde o ShowScreen deixou.
+sub OnSettingsItemSelected()
+    idx = m.settingsScreen.itemSelected
+    m.settingsScreen.itemSelected = -1
+    if idx = 0 then
+        m.settingsScreen.editMode = true
+    else if idx = 1 then
+        StartSettingsTest()
+    end if
+end sub
+
+' Teste de conexão: SettingsTask mode="test" (node DEDICADO, sem classificação
+' compartilhada como o ProgressTask M3/M4). Reset do feedback ANTES do RUN (padrão
+' StartPlay) — re-testar dispara de novo.
+sub StartSettingsTest()
+    if m.settingsTask = invalid then
+        m.settingsTask = createObject("roSGNode", "SettingsTask")
+        m.settingsTask.observeField("success", "OnSettingsTestSuccess")
+        m.settingsTask.observeField("error", "OnSettingsTestError")
+    end if
+    m.settingsScreen.testSuccess = false
+    m.settingsScreen.error = ""
+    m.bootSpinner.visible = true
+    m.settingsTask.control = "STOP"
+    m.settingsTask.control = "RUN"
+end sub
+
+sub OnSettingsTestSuccess()
+    if not m.settingsTask.success then
+        return
+    end if
+    m.bootSpinner.visible = false
+    m.settingsScreen.testSuccess = true
+end sub
+
+' O teste é GET público (sem Bearer) — session_expired não existe aqui; todo erro
+' vira feedback na tela. Guard ANTES do spinner: o execute() zera error="" ANTES do
+' RUN (re-teste) e esse fire NÃO pode esconder o spinner do teste em voo.
+sub OnSettingsTestError()
+    if m.settingsTask.error = "" then return
+    m.bootSpinner.visible = false
+    m.settingsScreen.error = TranslateSettingsError(m.settingsTask.error)
+end sub
+
+' Salvar do sub-modo edição: valida (não-vazia + começa com "http") → persiste +
+' LOGOUT + re-login (spec §3.2: trocar backend = logout). O cache do anon key M1
+' se invalida SOZINHO (ResolveAnonKey: anon_key_backend ≠ nova URL → re-fetch).
+' boot sem refresh token (recém-limpado) falha session_expired → OnSessionError →
+' AuthScreen — que É o re-login esperado.
+sub OnBackendSubmitted()
+    if not m.settingsScreen.backendSubmitted then return
+    m.settingsScreen.backendSubmitted = false
+    url = m.settingsScreen.backendUrl
+    if url = "" or url.inStr("http") <> 0 then
+        m.settingsScreen.error = "URL inválida — informe uma URL http(s)."
+        m.settingsScreen.backendUrl = SettingsBackendUrl()
+        return
+    end if
+    SessionWrite("backend_url", url)
+    SessionClearSession()
+    ClearAccessTokenCache()
+    StartSessionTask("boot")
+end sub
+
+' Toggle lembrar último perfil: Registry "remember_last_profile" ("true"/ausente
+' — spec) + re-render do label via rememberEnabled (mesma fonte de verdade)
+sub OnRememberToggled()
+    if not m.settingsScreen.rememberToggled then return
+    m.settingsScreen.rememberToggled = false
+    enabled = not (SessionRead("remember_last_profile") = "true")
+    if enabled then
+        SessionWrite("remember_last_profile", "true")
+    else
+        SessionDeleteKey("remember_last_profile")
+    end if
+    m.settingsScreen.rememberEnabled = enabled
+end sub
+
+' Logout: limpa sessão → AuthScreen DIRETO (sem boot — sem refresh token o boot
+' só falharia session_expired para mostrar a MESMA tela). backend_url/anon_key
+' permanecem no Registry (re-login não perde config — Session.brs).
+sub OnLogoutRequested()
+    if not m.settingsScreen.logoutRequested then return
+    m.settingsScreen.logoutRequested = false
+    SessionClearSession()
+    ClearAccessTokenCache()
+    ShowAuth()
+end sub
+
+' Logout/troca de backend matam a sessão SEM passar pelo path session_expired
+' (que já zera o cache dentro do RefreshAccessToken) — o cache de access token em
+' RAM (TTL 100min) precisa morrer junto, senão o re-login reutiliza token da
+' sessão anterior até expirar o TTL.
+sub ClearAccessTokenCache()
+    if m.global.hasField("accessTokenCache") then
+        m.global.accessTokenCache = ""
+        m.global.accessTokenCacheAt = 0
+    end if
+end sub
+
+function TranslateSettingsError(err as string) as string
+    if err = "well_known_failed" then
+        return "Resposta inválida — não é um backend Nuvio válido."
+    end if
+    if err = "timeout" then
+        return "Sem resposta do servidor (timeout)."
+    end if
+    if err = "transfer_failed" then
+        return "Falha de rede — verifique a URL do servidor."
+    end if
+    if err.inStr("http_") = 0 then
+        return "Erro do servidor (" + err + ")."
+    end if
+    return err
+end function
+
 sub OnItemSelected()
     itemJson = m.homeScreen.itemSelected
     if itemJson = invalid or itemJson = "" then
@@ -845,6 +1008,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
             ShowScreen(m.homeScreen)
             return true
         end if
+        if name = "SettingsScreen" and m.homeScreen <> invalid then
+            ShowScreen(m.homeScreen)
+            return true
+        end if
         if name = "HomeScreen" and m.profileScreen <> invalid then
             ShowScreen(m.profileScreen)
             return true
@@ -877,8 +1044,36 @@ sub OnSessionSuccess()
         return
     end if
     m.bootSpinner.visible = false
+    ' Remember-last-profile (M4): pula o ProfileScreen SÓ quando o flag está ON E
+    ' o perfil salvo AINDA existe na lista vinda do servidor (perfil removido →
+    ' cai na seleção normal). A tela de perfis é criada + injetada MESMO no skip
+    ' (sem ShowScreen) — o back Home→Profile continua existindo (nota do plano).
+    if SessionRead("remember_last_profile") = "true" then
+        storedId = SessionRead("active_profile_id")
+        if storedId <> "" and ProfileExistsIn(parseJson(m.sessionTask.profilesJson), storedId) then
+            if m.profileScreen = invalid then
+                m.profileScreen = createObject("roSGNode", "ProfileScreen")
+                m.profileScreen.observeField("profileSelected", "OnProfileSelected")
+            end if
+            m.profileScreen.profilesJson = m.sessionTask.profilesJson
+            ShowHome(storedId.toInt())
+            return
+        end if
+    end if
     ShowProfiles(m.sessionTask.profilesJson)
 end sub
+
+function ProfileExistsIn(profiles as object, profileId as string) as boolean
+    if profiles = invalid or type(profiles) <> "roArray" then
+        return false
+    end if
+    for each p in profiles
+        if p <> invalid and p.doesExist("profile_id") and p.profile_id.toStr() = profileId then
+            return true
+        end if
+    end for
+    return false
+end function
 
 sub OnSessionError()
     m.bootSpinner.visible = false

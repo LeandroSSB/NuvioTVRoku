@@ -12,12 +12,14 @@
         <field id="searchRequested" type="bool" value="false" />
         <field id="libraryRequested" type="bool" value="false" />
         <field id="addonsRequested" type="bool" value="false" />
+        <field id="configRequested" type="bool" value="false" />
     </interface>
     <children>
         <Label id="header" translation="[60, 50]" text="Nuvio TV" font="font:LargeSystemFont" />
-        <Button id="libraryButton" translation="[480, 44]" text="Biblioteca" />
-        <Button id="addonsButton" translation="[750, 44]" text="Addons" />
-        <Button id="searchButton" translation="[1020, 44]" text="Buscar" />
+        <Button id="libraryButton" translation="[400, 44]" text="Biblioteca" />
+        <Button id="addonsButton" translation="[620, 44]" text="Addons" />
+        <Button id="searchButton" translation="[840, 44]" text="Buscar" />
+        <Button id="configButton" translation="[1060, 44]" text="Config" />
         <BusySpinner id="spinner" translation="[600, 340]" visible="true" spin="true" />
         <RowList id="rows" translation="[60, 110]" numRows="2" rowItemSize="[[240, 405]]" itemComponentName="PosterItem" itemSpacing="[30, 25]" rowFocusAnimationStyle="fixedFocusWrap" />
         <Label id="errorLabel" translation="[60, 650]" width="1160" font="font:SmallSystemFont" color="0xE57373" />
