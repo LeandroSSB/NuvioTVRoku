@@ -31,8 +31,16 @@ sub execute()
         return
     end if
     for each addon in BuildAddonList(resp.json)
-        mResp = HttpGetJson(addon.manifestUrl, { })
-        manifest = ParseManifest(mResp.json)
+        ' manifest via cache de sessão (Cache.brs) — só cacheia 2xx + json:
+        ' falha transitória não fixa manifest vazio pela sessão
+        manifest = CacheGetManifest(addon.manifestUrl)
+        if manifest = invalid then
+            mResp = HttpGetJson(addon.manifestUrl, { })
+            manifest = ParseManifest(mResp.json)
+            if mResp.ok and mResp.json <> invalid then
+                CacheSetManifest(addon.manifestUrl, manifest)
+            end if
+        end if
         if manifest.hasStream = true and (SupportsType(manifest.types, m.top.streamType) or manifest.types.count() = 0) then
             baseUrl = AddonBaseUrl(addon.manifestUrl)
             sResp = HttpGetJson(baseUrl + "/stream/" + m.top.streamType + "/" + m.top.streamId + ".json", { })

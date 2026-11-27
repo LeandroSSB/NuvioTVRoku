@@ -6,6 +6,7 @@
     <script type="text/brightscript" uri="pkg:/source/lib/Session.brs" />
     <script type="text/brightscript" uri="pkg:/source/auth/AuthClient.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/Addons.brs" />
+    <script type="text/brightscript" uri="pkg:/source/lib/Cache.brs" />
     <script type="text/brightscript" uri="pkg:/source/lib/Models.brs" />
     <script type="text/brightscript" uri="pkg:/source/subs/SubsClient.brs" />
     <script type="text/brightscript" uri="SubsTask.brs" />

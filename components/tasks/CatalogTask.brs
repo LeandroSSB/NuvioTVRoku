@@ -44,8 +44,16 @@ sub RunHomeFetch()
     MAX_ROWS = 40
     for each addon in addons
         if rowIndex < MAX_ROWS then
-            mResp = HttpGetJson(addon.manifestUrl, { })
-            manifest = ParseManifest(mResp.json)
+            ' manifest via cache de sessão (Cache.brs) — só cacheia 2xx + json:
+            ' falha transitória não fixa manifest vazio pela sessão
+            manifest = CacheGetManifest(addon.manifestUrl)
+            if manifest = invalid then
+                mResp = HttpGetJson(addon.manifestUrl, { })
+                manifest = ParseManifest(mResp.json)
+                if mResp.ok and mResp.json <> invalid then
+                    CacheSetManifest(addon.manifestUrl, manifest)
+                end if
+            end if
             if manifest.catalogs.count() > 0 then
                 baseUrl = AddonBaseUrl(addon.manifestUrl)
                 addonsOut.push({ name: addon.name, baseUrl: baseUrl, types: manifest.types, hasMeta: manifest.hasMeta })

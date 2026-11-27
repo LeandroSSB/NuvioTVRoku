@@ -6,9 +6,9 @@
 
 </div>
 
-> **Status:** M3 (watch-progress sync + continue watching) on top of M1–M2
-> (auth + profiles + home + detail; streams + player + subtitles + local
-> resume). Port of
+> **Status:** M4 (search + collections + addons screen + settings + session
+> cache) on top of M1–M3 (auth + profiles + home + detail; streams + player +
+> subtitles + resume; watch-progress sync + continue watching). Port of
 > [NuvioMedia/NuvioTV](https://github.com/NuvioMedia/NuvioTV) to Roku
 > BrightScript/SceneGraph. Code-complete without a device: contracts + lint +
 > packaging are green; UI/player validation happens when a Roku is available.
@@ -19,7 +19,7 @@
 - [x] M1 — auth + profiles + home + detail (blind-validated; device checks pending)
 - [x] M2 — streams + player + subtitles + local resume (blind-validated; E2E pending device)
 - [x] M3 — watch-progress sync (PostgREST; server-preferred resume; continue-watching row)
-- [ ] M4 — search, collections, addons screen, settings
+- [x] M4 — search, collections, addons screen, settings, session cache (blind-validated; E2E pending device)
 - [ ] M5 — upstream PR to NuvioMedia
 
 ## Platform cuts (honest, documented)
@@ -33,7 +33,7 @@ covers the platform-applicable surface only:
 - Dolby Vision: relies on Roku native DV decoding (no DV7 RPU conversion)
 - Subtitle formats: Roku player supports SRT/VTT sidecar; ASS falls back to VTT conversion
 
-## App flow (M1–M3)
+## App flow (M1–M4)
 
 Boot → restore session (refresh token grant) or login (e-mail/password, GoTrue)
 → profile selection (PostgREST `profiles`, RLS-scoped) → Home rows (catalogs of
@@ -48,13 +48,27 @@ pause/back, cleared on finish. Playback pushes position to PostgREST
 assistindo" row enriched from the meta addons; resume prefers the server
 position (local Registry as offline fallback).
 
+M4 surfaces: search walks the profile's addons that declare a `search` extra
+using PATH-form extras (`/catalog/{type}/{id}/search={q}.json` — the query
+param is ignored by addons), deduped and capped; collections read PostgREST
+`library_items` with add/remove from Detail via the table's sync RPCs; the
+addons screen lists the profile's addons and enables/disables them via backend
+upsert; settings cover backend override (logout + re-login), connection test,
+remember-last-profile boot skip, and logout. Manifests are cached for the
+session (m.global, URL-keyed, no TTL — dies with the process), so a play or
+search does ~1 manifest fetch per addon instead of dozens.
+
 Registry keys (`nuvio` section): `backend_url`, `anon_key`, `anon_key_backend`,
 `refresh_token`, `active_profile_id`, `user_id`, `res_<itemId>`. Access tokens
 are never persisted (2 h expiry; refreshed on use).
 
-Deliberate M1–M2 cuts (tracked for M4+): profile PIN, profile create/edit/delete,
-logout UI, "remember last profile" toggle, avatar images (color tile + initial
-instead), manual subtitle/audio track selection.
+Deliberate cuts (tracked for M5+): profile PIN, profile create/edit/delete,
+avatar images (color tile + initial instead), manual subtitle/audio track
+selection. M4 notes: addon enable/disable goes through a backend upsert
+(`POST ?on_conflict=id` merge-duplicates — roUrlTransfer has no PATCH); library
+add/remove uses the `library_items` sync RPCs (add validated live; the delete
+RPC authenticates but is a silent no-op with the documented key shape — pending
+device-phase investigation).
 
 - Full-charset password entry: the on-screen MiniKeyboard is case-insensitive —
   use the Roku mobile app keyboard or voice input for passwords with
@@ -78,7 +92,7 @@ manifest            Roku channel manifest
 assets/images/      placeholder icon/splash art (HD/SD)
 source/main.brs     entry point
 source/config/      backend config (Registry + well-known resolve)
-components/         SceneGraph screens + tasks (MainScene; M1–M3 add home/detail/player/streams/progress/...)
+components/         SceneGraph screens + tasks (MainScene; M1–M4 add home/detail/player/streams/progress/search/library/addons/settings/...)
 contracts/          curl suite that freezes the JSON contracts the app consumes
 scripts/            lint-megalan.sh (bslint in Docker on a remote host)
 package.json        toolchain (bslint, roku-deploy)
@@ -107,7 +121,9 @@ movie and episode `tt:s:e` (shape frozen, AVI present, ≥1 compatible
 mkv/mp4/mov/m4v/hls) · `11` subtitles via OpenSubtitles-class addon found by
 walking profiles (shape + `lang` + SRT format probe) · `12` `watch_progress`
 read + write round-trip (ms/epoch shape, `last_watched.desc`, upsert requiring
-`user_id` + `video_id`; fake row always cleaned up).
+`user_id` + `video_id`; fake row always cleaned up) · `13` search PATH-form
+extras + `library_items` add/remove + addons CRUD (toggle via upsert-by-id) +
+RLS cross-account isolation.
 
 ## Distribution (Roku)
 
