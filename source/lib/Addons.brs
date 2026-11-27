@@ -71,6 +71,8 @@ function HasSearchExtra(catalog as object) as boolean
         return false
     end if
     for each e in catalog.extra
+        ' guard: extra codificado como string não contém array de objetos — aborta
+        if type(e) <> "roAssociativeArray" then exit for
         if e.doesExist("name") and e.name = "search" then
             return true
         end if

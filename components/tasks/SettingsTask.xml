@@ -6,6 +6,7 @@
     <script type="text/brightscript" uri="SettingsTask.brs" />
     <interface>
         <field id="mode" type="string" value="test" />
+        <field id="probeUrl" type="string" value="" />
         <field id="success" type="bool" value="false" />
         <field id="error" type="string" value="" />
     </interface>

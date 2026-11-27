@@ -4,8 +4,11 @@
 # cross-account. Usa a CONTA SUB (NUVIO_SUB_*) para todas as escritas — a conta
 # main nunca é mutada. Search: extras Stremio são PATH segments (?search= é ignorado
 # pelos addons — provado 26/11; Xperience e Nuvio Catalog respondem, AIOStreams não
-# tem search). library_items = meta snapshot rico. addons: INSERT/PATCH/DELETE por
-# RLS do próprio usuário.
+# tem search). library_items = meta snapshot rico + os RPCs de sync do app
+# (sync_push_library_items funcional; sync_delete_library_items autentica mas é
+# no-op com a shape p_keys — documentado, cleanup via DELETE de tabela). addons:
+# INSERT/PATCH/DELETE + UPSERT-BY-ID (?on_conflict=id merge-duplicates — o
+# mecanismo REAL do toggle do app) por RLS do próprio usuário.
 source "$(dirname "$0")/lib.sh"
 
 ANON="$(json_get "$(wellknown "$NUVIO_BACKEND_URL")" .publishable_key)"
@@ -65,6 +68,13 @@ INS="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/addons" "${SU[@]}" \
 assert_contains "INSERT addon na sub" '"M4TEST"' "$INS"
 ADDON_ID="$(json_get "$INS" 'if type=="array" then .[0].id else empty end')"
 assert_not_empty "addon id retornado" "$ADDON_ID"
+# UPSERT-BY-ID (o mecanismo REAL do toggle do app — roUrlTransfer não tem PATCH).
+# A row PARCIAL (id+enabled) falha 23502 NOT NULL url — o payload PRECISA carregar
+# a row inteira (name/url/sort_order).
+TOGGLE="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/addons?on_conflict=id" "${SU[@]}" \
+    -H "Content-Type: application/json" -H "Prefer: return=representation,resolution=merge-duplicates" \
+    -d "{\"id\":\"$ADDON_ID\",\"enabled\":false,\"name\":\"M4TEST\",\"url\":\"https://example.com/manifest.json\",\"sort_order\":99,\"profile_id\":1,\"user_id\":\"$SUB_USER\"}")"
+assert_contains "upsert-by-id faz toggle (mecanismo real do app)" '"enabled":false' "$(echo "$TOGGLE" | jq -c 'if type=="array" then .[0] else . end | {enabled: .enabled}')"
 PATCH_CODE="$(curl -sS -m 10 -X PATCH "$NUVIO_BACKEND_URL/rest/v1/addons?id=eq.$ADDON_ID" "${SU[@]}" \
     -H "Content-Type: application/json" -d '{"enabled":false}' -o /dev/null -w "%{http_code}")"
 assert_eq "PATCH enabled=false → 204" "204" "$PATCH_CODE"
@@ -74,5 +84,29 @@ DEL_CODE="$(curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/addons?id=eq.$A
 assert_eq "DELETE addon fake → 204" "204" "$DEL_CODE"
 assert_eq "cleanup: 0 rows M4TEST" "0" \
     "$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/addons?name=eq.M4TEST" "${SU[@]}" | jq 'length')"
+
+# LIBRARY RPCs (os mecanismos REAIS de add/remove do app)
+# cleanup defensivo: remove rows fake de runs anteriores via DELETE de TABELA
+# (o RPC delete é no-op — ver abaixo; o curl do contrato tem DELETE, o app não)
+curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=eq.ttTEST0000&profile_id=eq.1" "${SU[@]}" -o /dev/null || true
+SNAP='{"content_id":"ttTEST0000","content_type":"movie","name":"M4 Test Movie","poster":"","background":"","description":"","genres":"","imdb_rating":"","release_info":"","poster_shape":"poster","addon_base_url":""}'
+PUSH="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/rpc/sync_push_library_items" "${SU[@]}" \
+    -H "Content-Type: application/json" \
+    -d "{\"p_items\":[$SNAP],\"p_profile_id\":1,\"p_origin_client_id\":\"nuviotvroku\"}" \
+    -o /dev/null -w "%{http_code}")"
+assert_eq "sync_push_library_items → 204 (add do app)" "204" "$PUSH"
+DEL="$(curl -sS -m 15 -X POST "$NUVIO_BACKEND_URL/rest/v1/rpc/sync_delete_library_items" "${SU[@]}" \
+    -H "Content-Type: application/json" \
+    -d '{"p_keys":["ttTEST0000"],"p_profile_id":1}' \
+    -o /dev/null -w "%{http_code}")"
+assert_eq "sync_delete_library_items autentica (shape p_keys sob validação device)" "204" "$DEL"
+LEFT="$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=eq.ttTEST0000&profile_id=eq.1" "${SU[@]}" | jq 'length')"
+# OBSERVADO 26/11: o RPC delete autentica (204) mas é NO-OP — a row permanece (1).
+# Congela o comportamento REAL (investigação device-phase; ver README "Deliberate cuts").
+assert_eq "estado pós-RPCs (delete no-op documentado — fix device-phase)" "1" "$LEFT"
+# cleanup INCONDICIONAL: nada vaza — o row fake sai via DELETE de tabela
+curl -sS -m 10 -X DELETE "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=eq.ttTEST0000&profile_id=eq.1" "${SU[@]}" -o /dev/null || true
+assert_eq "cleanup: 0 rows ttTEST0000 (no-op do RPC não vaza)" "0" \
+    "$(curl -sS -m 10 "$NUVIO_BACKEND_URL/rest/v1/library_items?content_id=eq.ttTEST0000&profile_id=eq.1" "${SU[@]}" | jq 'length')"
 
 finish_contract "13-search-library-addons"

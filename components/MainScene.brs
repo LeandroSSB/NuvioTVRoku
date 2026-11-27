@@ -547,10 +547,11 @@ sub OnSettingsItemSelected()
     end if
 end sub
 
-' Teste de conexão: SettingsTask mode="test" (node DEDICADO, sem classificação
-' compartilhada como o ProgressTask M3/M4). Reset do feedback ANTES do RUN (padrão
-' StartPlay) — re-testar dispara de novo.
-sub StartSettingsTest()
+' SettingsTask (node DEDICADO, sem classificação compartilhada como o ProgressTask
+' M3/M4): mode="test" (teste de conexão do backend corrente) e mode="probe"
+' (pré-checagem do backend digitado ANTES de persistir — OnBackendSubmitted). Reset
+' do feedback ANTES do RUN (padrão StartPlay) — re-testar dispara de novo.
+sub StartSettingsTest(mode = "test" as string, probeUrl = "" as string)
     if m.settingsTask = invalid then
         m.settingsTask = createObject("roSGNode", "SettingsTask")
         m.settingsTask.observeField("success", "OnSettingsTestSuccess")
@@ -559,6 +560,8 @@ sub StartSettingsTest()
     m.settingsScreen.testSuccess = false
     m.settingsScreen.error = ""
     m.bootSpinner.visible = true
+    m.settingsTask.probeUrl = probeUrl
+    m.settingsTask.mode = mode
     m.settingsTask.control = "STOP"
     m.settingsTask.control = "RUN"
 end sub
@@ -568,36 +571,54 @@ sub OnSettingsTestSuccess()
         return
     end if
     m.bootSpinner.visible = false
+    if m.settingsTask.mode = "probe" then
+        ' Probe OK → AGORA sim persiste (nada foi escrito antes — URL errada não
+        ' salva e não bricka) + LOGOUT + re-login (spec §3.2: trocar backend =
+        ' logout). O cache do anon key M1 se invalida SOZINHO (ResolveAnonKey:
+        ' anon_key_backend ≠ nova URL → re-fetch). Boot sem refresh token
+        ' (recém-limpado) falha session_expired → OnSessionError → AuthScreen —
+        ' que É o re-login esperado.
+        SessionWrite("backend_url", m.settingsTask.probeUrl)
+        SessionClearSession()
+        ClearAccessTokenCache()
+        StartSessionTask("boot")
+        return
+    end if
     m.settingsScreen.testSuccess = true
 end sub
 
-' O teste é GET público (sem Bearer) — session_expired não existe aqui; todo erro
-' vira feedback na tela. Guard ANTES do spinner: o execute() zera error="" ANTES do
+' O teste/probe é GET público (sem Bearer) — session_expired não existe aqui; todo
+' erro vira feedback na tela. Guard ANTES do spinner: o execute() zera error="" ANTES do
 ' RUN (re-teste) e esse fire NÃO pode esconder o spinner do teste em voo.
 sub OnSettingsTestError()
     if m.settingsTask.error = "" then return
     m.bootSpinner.visible = false
+    if m.settingsTask.mode = "probe" then
+        ' Probe falhou → NADA persistido (backend_url continua o anterior) — só
+        ' feedback; a URL digitada fica na tela p/ o usuário corrigir.
+        m.settingsScreen.error = "Backend não respondeu — URL não salva."
+        return
+    end if
     m.settingsScreen.error = TranslateSettingsError(m.settingsTask.error)
 end sub
 
-' Salvar do sub-modo edição: valida (não-vazia + começa com "http") → persiste +
-' LOGOUT + re-login (spec §3.2: trocar backend = logout). O cache do anon key M1
-' se invalida SOZINHO (ResolveAnonKey: anon_key_backend ≠ nova URL → re-fetch).
-' boot sem refresh token (recém-limpado) falha session_expired → OnSessionError →
-' AuthScreen — que É o re-login esperado.
+' Salvar do sub-modo edição: normaliza (trim + trailing "/", URLs coladas comuns) →
+' valida → PROBE (SettingsTask mode="probe") → só persiste se o backend responder.
+' Persistir direto uma URL errada brickava o app (boot falha well-known para sempre).
 sub OnBackendSubmitted()
     if not m.settingsScreen.backendSubmitted then return
     m.settingsScreen.backendSubmitted = false
     url = m.settingsScreen.backendUrl
-    if url = "" or url.inStr("http") <> 0 then
-        m.settingsScreen.error = "URL inválida — informe uma URL http(s)."
-        m.settingsScreen.backendUrl = SettingsBackendUrl()
+    ' normaliza: trim + remove trailing "/" (pasted URLs comuns)
+    url = url.trim()
+    while url.right(1) = "/"
+        url = url.left(url.len() - 1)
+    end while
+    if url.len() < 12 or url.inStr("http") <> 0 then
+        m.settingsScreen.error = "URL inválida — use https://host"
         return
     end if
-    SessionWrite("backend_url", url)
-    SessionClearSession()
-    ClearAccessTokenCache()
-    StartSessionTask("boot")
+    StartSettingsTest("probe", url)
 end sub
 
 ' Toggle lembrar último perfil: Registry "remember_last_profile" ("true"/ausente
